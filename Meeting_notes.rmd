@@ -1,0 +1,14 @@
+<b>4/30</b>
+
+Lets define N tasks, m activation functions.
+Use H number of hidden layers
+
+Tasks:
+MNIST,
+sentiment analysis based on stanford dataset
+
+
+Activation functions: 
+tanh,
+sigmoid,
+RELU
