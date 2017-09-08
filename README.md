@@ -5,11 +5,16 @@ Overleaf link - https://www.overleaf.com/9841741tdmzmksynxzs
 2) Ankit - http://www.pnas.org/content/114/13/3521.full.pdf, https://arxiv.org/pdf/1605.06391.pdf 
 3) Aniket - https://arxiv.org/pdf/1705.08142.pdf, http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7780802 
 
-Dataset creation:
+
+Datasets - 
+
+1) Dataset creation:
 
 Task 1: horse, canoe,    
 Task 2: Zebra, kayak, 
 Task 3: dolphin, ketch-101
 
+2) School Dataset - http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.6440&rep=rep1&type=pdf
 
+3) Parkisons Dataset - https://archive.ics.uci.edu/ml/datasets/parkinsons+telemonitoring
 
