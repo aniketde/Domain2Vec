@@ -14,7 +14,7 @@ Task 1: horse, canoe,
 Task 2: Zebra, kayak, 
 Task 3: dolphin, ketch-101
 
-2) School Dataset - http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.6440&rep=rep1&type=pdf
+2) School Dataset - http://dl.acm.org/citation.cfm?id=1014067
 
 3) Parkisons Dataset - https://archive.ics.uci.edu/ml/datasets/parkinsons+telemonitoring
 
