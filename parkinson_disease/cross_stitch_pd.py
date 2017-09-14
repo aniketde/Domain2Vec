@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from layer_utils import *
+from sklearn.model_selection import train_test_split
 
 # Importing the parkinson dataset using the url:
 url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/parkinsons/telemonitoring/parkinsons_updrs.data'
@@ -27,9 +28,17 @@ def subjectIDNpArr(subject_id, dataframe=pd_data):
     :return: numpy array with N-1 columns, where dataframe has N columns
     """
     np_data = pd_data.loc[pd_data.subject_id == 1]
-    np_data = np_data.drop("subject_id", axis=1)
-    np_arr = np_data.values
-    return np_arr
+    train, test = train_test_split(np_data, test_size=0.2)
+
+    # Getting features and labels for training set
+    train_features = train.drop(["subject_id", 'total_updrs', 'motor_updrs'], axis=1).values
+    train_labels = train.total_updrs.values
+
+    # Getting features and labels for test set
+    test_features = test.drop(["subject_id", 'total_updrs', 'motor_updrs'], axis=1).values
+    test_labels = test.total_updrs.values
+
+    return train_features, train_labels, test_features, test_labels
 
 
 # Function to build the graph
