@@ -1,2 +1,4 @@
 *.idea
+parkinson_disease/graphs/
+parkinson_disease/checkpoints/
 __pycache__/

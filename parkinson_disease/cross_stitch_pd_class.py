@@ -1,0 +1,177 @@
+import urllib.request
+import shutil
+import os
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from layer_utils import *
+from sklearn.model_selection import train_test_split
+
+
+def subjectIDNpArr(subject_id, dataframe):
+    """
+    This function returns the numpy array for the corresponding subject in the dataframe
+    :param subject_id: the subject id to subset the dataframe
+    :param dataframe: dataframe which we have to subset and convert to numpy array
+    :return: numpy array with N-1 columns, where dataframe has N columns
+    """
+    np_data = pd_data.loc[dataframe.subject_id == subject_id]
+    train, test = train_test_split(np_data, test_size=0.2)
+
+    # Getting features and labels for training set
+    train_features = train.drop(["subject_id", 'total_updrs', 'motor_updrs'], axis=1).values
+    train_labels = train.total_updrs.values
+
+    # Getting features and labels for test set
+    test_features = test.drop(["subject_id", 'total_updrs', 'motor_updrs'], axis=1).values
+    test_labels = test.total_updrs.values
+
+    return train_features, train_labels, test_features, test_labels
+
+
+def DataIterator(features, labels, batch_size):
+    """
+    """
+    num_samples = features.shape[0]
+    chunk_start_marker = 0
+    while True:
+        if chunk_start_marker + batch_size > num_samples:
+            permutation = np.random.permutation(num_samples)
+            features = features[permutation]
+            labels = labels[permutation]
+            chunk_start_marker = 0
+        batch_features = features[chunk_start_marker:(chunk_start_marker+batch_size)]
+        batch_labels = labels[chunk_start_marker:(chunk_start_marker+batch_size)]
+        chunk_start_marker += batch_size
+        yield batch_features, batch_labels
+
+
+class SingleGraph:
+    """
+    This is the graph for single task training
+    """
+    def __init__(self, name='sg_net1', alpha_mat=np.asarray([[0.9, 0.1], [0.1, 0.9]]), learning_rate=0.01):
+        self._alpha_mat = alpha_mat
+        self._name = name
+        self._learning_rate = learning_rate
+        self._create()
+
+    def _create(self):
+        self.input_ph = tf.placeholder(tf.float32, shape=[None, 19])
+        self.output = tf.placeholder(tf.float32, shape=[None])
+        with tf.variable_scope(self._name):
+            self.fc1 = fully_connected_layer(self.input_ph, 10, name='fc1')
+            self.fc2 = fully_connected_layer(self.fc1, 2, name='fc2', non_linear_fn=None)
+
+        with tf.variable_scope('prediction'):
+            w = tf.get_variable('lr_weight', shape=[2, 1], initializer=tf.truncated_normal_initializer(stddev=0.01))
+            b = tf.get_variable('lr_bias', shape=[1], initializer=tf.constant_initializer(0.1))
+            self.pred = tf.matmul(self.fc2, w) + b
+
+    def _train(self, sess, iterator, epochs, subject_id, num_samples):
+        # Getting the basic variables required to run loops for the desired number of epochs
+        data, y = next(iterator)
+
+        batch_size = int(data.shape[0])
+        num_cycles = int(np.ceil((epochs * num_samples) / batch_size))
+
+        # Defining the optimization step of the graph and setting up the summary operation
+        with tf.variable_scope('optimization'):
+            global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
+            self.losses = tf.reduce_mean(tf.square(self.pred - self.output))
+            optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self.losses, global_step=global_step)
+            summary_op = summaries(self.losses)
+            saver = tf.train.Saver()
+
+        # Setting up the tensorboard and the checkpoint directory
+        ckpt_dir = './checkpoints/sg_{}_checkpoints/'.format(subject_id)
+        tb_dir = './graphs/{}/'.format(subject_id)
+        make_dir('./checkpoints/')
+        make_dir('./checkpoints/sg_{}_checkpoints/'.format(subject_id))
+
+        # Writing graph to the tensorboard directory
+        writer = tf.summary.FileWriter(tb_dir, sess.graph)
+
+        # This is the main training module of the graph
+        with sess.as_default():
+            sess.run(tf.global_variables_initializer())  # Initializing the variables
+
+            # Checking the checkpoint directory to look for the last trained model
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname(ckpt_dir + '/checkpoint'))
+            if ckpt and ckpt.model_checkpoint_path:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+                print('A better checkpoint is found. Its global_step value is: %d', global_step.eval())
+
+            # Training for the desired number of epochs
+            for step in range(num_cycles - global_step.eval()):
+                _, total_loss, summary = sess.run([optimizer, self.losses, summary_op], feed_dict={self.input_ph: data,
+                                                                                              self.output: y})
+                writer.add_summary(summary, global_step=global_step.eval())
+                saver.save(sess, ckpt_dir, global_step.eval())
+                print("Step {} : Training Loss = {}".format(step, total_loss))
+                data, y = next(iterator)
+
+    def predictions(self, sess, test_data, test_outputs):
+        prediction, total_loss = sess.run([self.fc2, self.losses], feed_dict={self.input_ph: test_data, self.output: test_outputs})
+        return prediction, total_loss
+
+class CrossStitchGraph:
+    """
+    This is the cross-stitched network where we can pass two input and get two outputs.
+    Hyperparameters:
+    alpha_mat: is a 2x2 matrix which determines the sharing of parameters between the two graphs
+
+    """
+    def __init__(self, name='csg_net1', alpha_mat=np.asarray([[0.9, 0.1], [0.1, 0.9]])):
+        self._alpha_mat = alpha_mat
+        self._name = name
+        self._create()
+
+    def _create(self):
+        self.input_ph_g1 = tf.placeholder(tf.float32, shape=[-1, 19])
+        self.y_g1 = tf.placeholder(tf.float32, shape=[None])
+        self.input_ph_g2 = tf.placeholder(tf.float32, shape=[-1, 19])
+        self.y_g2 = tf.placeholder(tf.float32, shape=[None])
+        with tf.variable_scope(self._name):
+            self.fc1_g1 = fully_connected_layer(self.input_ph_g1, 10, name='fc1_g1')
+            self.fc1_g2 = fully_connected_layer(self.input_ph_g2, 10, name='fc1_g2')
+            self.fc1_cs_g1, self.fc1_cs_g2 = cross_stitch(self.fc1_g1, self.fc1_g2, self._alpha_mat)
+
+            self.fc2_g1 = fully_connected_layer(self.fc1_cs_g1, 2, name='fc2_g1', non_linear_fn=None)
+            self.fc2_g2 = fully_connected_layer(self.fc1_cs_g2, 2, name='fc2_g2', non_linear_fn=None)
+
+            with tf.variable_scope('prediction_g1'):
+                w = tf.get_variable('lr_weight_1', shape=[2, 1], initializer=tf.truncated_normal_initializer(stddev=0.01))
+                b = tf.get_variable('lr_bias_1', shape=[1], initializer=tf.constant_initializer(0.1))
+                self.pred_g1 = tf.matmul(self.fc2_g1, w) + b
+
+            with tf.variable_scope('prediction_g2'):
+                w = tf.get_variable('lr_weight_2', shape=[2, 1], initializer=tf.truncated_normal_initializer(stddev=0.01))
+                b = tf.get_variable('lr_bias_2', shape=[1], initializer=tf.constant_initializer(0.1))
+                self.pred_g2 = tf.matmul(self.fc2_g2, w) + b
+
+
+if __name__ == '__main__':
+    # Setting up the parameters
+    learning_rate = 0.001
+    batch_size = 25
+    subject_id = 1
+
+    # Importing the parkinson dataset using the url:
+    url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/parkinsons/telemonitoring/parkinsons_updrs.data'
+    pd_data = pd.read_csv(url)
+    pd_data.columns.values[0] = "subject_id"
+    pd_data.columns = ['subject_id', 'age', 'sex', 'test_time', 'motor_updrs',
+                       'total_updrs', 'jitter_perc', 'jitter_abs', 'jitter_rap',
+                       'jitter_ppq5', 'jitter_ddp', 'shimmer', 'shimmer_db',
+                       'shimmer_apq3', 'shimmer_apq5', 'shimmer_apq11', 'shimmer_dda',
+                       'nhr', 'hnr', 'rpde', 'dfa', 'ppe']
+
+    train_x, train_y, test_x, test_y = subjectIDNpArr(subject_id, pd_data)
+
+    data_it = DataIterator(train_x, train_y, batch_size)
+    model = SingleGraph()
+    sess = tf.Session()
+    model._train(sess, data_it, 100, 1, int(train_x.shape[0]))
+    _, test_losses = model.predictions(sess, test_x, test_y)
+    print('Loss for the testing set {}'.format(test_losses))

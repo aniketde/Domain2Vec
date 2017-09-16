@@ -1,4 +1,5 @@
 import tensorflow as tf
+import os
 
 
 def fully_connected_layer(input_tensor,
@@ -33,3 +34,33 @@ def fully_connected_layer(input_tensor,
         if non_linear_fn is not None:
             fc1 = non_linear_fn(fc1)
         return fc1
+
+
+def cross_stitch(layer_1, layer_2, alpha_mat):
+    layer_1_fl = tf.reshape(layer_1, shape=[-1])
+    layer_2_fl = tf.reshape(layer_2, shape=[-1])
+    temp = tf.matmul(alpha_mat, tf.stack([layer_1_fl, layer_2_fl], axis=0))
+    temp_l1, temp_l2 = tf.unstack(temp, axis=0)
+    return tf.reshape(temp_l1, layer_1.shape), tf.reshape(temp_l2, layer_2.shape)
+
+
+def summaries(*args):
+    """
+    Create summaries (for tensorboard) of all the arguments passed to it
+    :param args:
+    :return:
+    """
+    with tf.variable_scope('summaries'):
+        for arg in args:
+            tf.summary.scalar(arg.name, arg)
+            tf.summary.histogram(arg.name, arg)
+        summary_op = tf.summary.merge_all()
+        return summary_op
+
+
+def make_dir(path):
+    """ Create a directory if there isn't one already. """
+    try:
+        os.mkdir(path)
+    except OSError:
+        pass
