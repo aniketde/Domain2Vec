@@ -39,9 +39,10 @@ def fully_connected_layer(input_tensor,
 def cross_stitch(layer_1, layer_2, alpha_mat):
     layer_1_fl = tf.reshape(layer_1, shape=[-1])
     layer_2_fl = tf.reshape(layer_2, shape=[-1])
-    temp = tf.matmul(alpha_mat, tf.stack([layer_1_fl, layer_2_fl], axis=0))
+    alpha = tf.Variable(alpha_mat, dtype=tf.float32)
+    temp = tf.matmul(alpha, tf.stack([layer_1_fl, layer_2_fl], axis=0))
     temp_l1, temp_l2 = tf.unstack(temp, axis=0)
-    return tf.reshape(temp_l1, layer_1.shape), tf.reshape(temp_l2, layer_2.shape)
+    return tf.reshape(temp_l1, (-1, int(layer_1.shape[1]))), tf.reshape(temp_l2, (-1, int(layer_2.shape[1])))
 
 
 def summaries(*args):
@@ -56,6 +57,14 @@ def summaries(*args):
             tf.summary.histogram(arg.name, arg)
         summary_op = tf.summary.merge_all()
         return summary_op
+
+
+def r_squared(y, prediction):
+    with tf.variable_scope('r_squared'):
+        total_error = tf.reduce_sum(tf.square(tf.subtract(y, tf.reduce_mean(y))))
+        unexplained_error = tf.reduce_sum(tf.square(tf.subtract(y, prediction)))
+        R_squared = tf.subtract(1.0, tf.div(total_error, unexplained_error))
+    return R_squared
 
 
 def make_dir(path):
