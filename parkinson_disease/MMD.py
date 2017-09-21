@@ -5,7 +5,8 @@ import sklearn.metrics.pairwise as Kern
 
 # Get task similarity matrix
 def GetMMD(X,bw_prob,bw_prod):
-    #Inputs: 1) X - dictionary containing features of all tasks X['1'] contains features (numpy nd array) of task 1 and so on.
+    #Inputs: 1) X - dictionary containing features of all tasks
+    #           X['1'] (\in n x d) contains features (numpy nd array) of task 1 and so on.
     #        2) bw_prob - width of the kernel in the mean embedding
     #        3) bw_prod - width of the final kernel on distribution
     #
