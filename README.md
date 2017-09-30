@@ -18,3 +18,5 @@ Task 3: dolphin, ketch-101
 
 3) Parkisons Dataset - https://archive.ics.uci.edu/ml/datasets/parkinsons+telemonitoring
 
+4) Smartphones Activity recognition DataSet - https://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions
+
