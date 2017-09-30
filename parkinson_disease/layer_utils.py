@@ -53,8 +53,8 @@ def summaries(*args):
     """
     with tf.variable_scope('summaries'):
         for arg in args:
-            tf.summary.scalar(arg.name, arg)
-            tf.summary.histogram(arg.name, arg)
+            tf.summary.scalar(arg.name.replace(":", "_"), arg)
+            tf.summary.histogram(arg.name.replace(":", "_"), arg)
         summary_op = tf.summary.merge_all()
         return summary_op
 

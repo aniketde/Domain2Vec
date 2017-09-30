@@ -74,7 +74,7 @@ class SingleGraph:
 
     def predictions(self, sess, test_data, test_outputs):
         prediction, total_loss, r2 = sess.run([self.fc2, self.losses, self.r_squared], feed_dict={self.input_ph: test_data, self.output: test_outputs})
-        return prediction, total_loss, r2
+        return prediction, np.sqrt(total_loss), r2
 
 
 class CrossStitchGraph:
@@ -152,8 +152,9 @@ class CrossStitchGraph:
                 saver.restore(sess, ckpt.model_checkpoint_path)
                 print('A better checkpoint is found. Its global_step value is: %d', global_step.eval())
 
+            temp_start = global_step.eval()
             # Training for the desired number of epochs
-            for step in range(num_cycles - global_step.eval()):
+            for step in range(num_cycles - temp_start):
                 _, total_loss, r2_g1, r2_g2, summary = sess.run([optimizer, self.losses, self.r_squared1, self.r_squared2,
                                                                  summary_op], feed_dict={self.input_ph_g1: data1,
                                                                                          self.input_ph_g2: data2,
@@ -171,4 +172,4 @@ class CrossStitchGraph:
                                                           feed_dict={self.input_ph_g1: test_data1, self.input_ph_g2: test_data2,
                                                                      self.y_g1: test_outputs1, self.y_g2: test_outputs2,
                                                                      self._alpha_mat: np.asarray([[1, 0], [0, 1]])})
-        return pred1, pred2, loss1.mean(), loss2.mean(), r2_1, r2_2
+        return pred1, pred2, np.sqrt(loss1.mean()), np.sqrt(loss2.mean()), r2_1, r2_2
