@@ -1,0 +1,14 @@
+Add the experiments we have to perform in the next few days (The minimum experiments we have to perform so that we can be in a good shape for poster presentation):
+1) <b>Experiment with the number of training examples and test accuracy</b> - ~ 100 runs for each # of training examples: do this for each subject id combination and single task learning
+
+2) <b>Experiments with alpha matrix: </b> 
+  a) Keep the alpha matrix constant
+  b) Replace it with MMD
+  c) Initialise it with MMD
+  c) Constraint the alpha matrix to be symmetric 
+  d) Contraint its sum to be one in each row
+  e) Keep it trainable with no limitations
+  f) Try to increase the dimension of alpha_matrix beyond two 
+
+3) Play with the MNIST dataset and create a clean test and training dataset from it
+
