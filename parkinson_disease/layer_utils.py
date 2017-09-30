@@ -36,13 +36,13 @@ def fully_connected_layer(input_tensor,
         return fc1
 
 
-def cross_stitch(layer_1, layer_2, alpha_mat):
+def cross_stitch(self, layer_1, layer_2, alpha_mat, train=False):
     layer_1_fl = tf.reshape(layer_1, shape=[-1])
     layer_2_fl = tf.reshape(layer_2, shape=[-1])
-    alpha = tf.Variable(alpha_mat, dtype=tf.float32)
+    alpha = tf.Variable(alpha_mat, dtype=tf.float32, trainable=train)
     temp = tf.matmul(alpha, tf.stack([layer_1_fl, layer_2_fl], axis=0))
     temp_l1, temp_l2 = tf.unstack(temp, axis=0)
-    return tf.reshape(temp_l1, (-1, int(layer_1.shape[1]))), tf.reshape(temp_l2, (-1, int(layer_2.shape[1])))
+    return tf.reshape(temp_l1, (-1, int(layer_1.shape[1]))), tf.reshape(temp_l2, (-1, int(layer_2.shape[1]))), alpha
 
 
 def summaries(*args):

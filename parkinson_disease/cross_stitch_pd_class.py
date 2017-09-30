@@ -6,6 +6,7 @@ import pandas as pd
 import tensorflow as tf
 from layer_utils import *
 from sklearn.model_selection import train_test_split
+from graph_classes import *
 
 
 def subjectIDNpArr(subject_id, dataframe):
@@ -19,7 +20,7 @@ def subjectIDNpArr(subject_id, dataframe):
     train, test = train_test_split(np_data, test_size=0.2)
 
     # Getting features and labels for training set
-    train_features = train.drop(["subject_id", 'total_updrs', 'motor_updrs'], axis=1).values
+    train_features = train.drop(["subjectf_id", 'total_updrs', 'motor_updrs'], axis=1).values
     train_labels = train.total_updrs.values
 
     # Getting features and labels for test set
@@ -46,172 +47,55 @@ def DataIterator(features, labels, batch_size):
         yield batch_features, batch_labels
 
 
-class SingleGraph:
-    """
-    This is the graph for single task training
-    """
-    def __init__(self, name='sg_net1', alpha_mat=np.asarray([[0.9, 0.1], [0.1, 0.9]]), learning_rate=0.01):
-        self._alpha_mat = alpha_mat
-        self._name = name
-        self._learning_rate = learning_rate
-        self._create()
+def exp_dif_training_examples(pd_data, subject_id1=1, subject_id2=2, stride=5, num_exprs=100):
+    train_x1, train_y1, test_x1, test_y1 = subjectIDNpArr(subject_id1, pd_data)
+    train_x2, train_y2, test_x2, test_y2 = subjectIDNpArr(subject_id2, pd_data)
+    if test_x1.shape[0] > test_x2.shape[0]:
+        test_x1 = test_x1[:test_x2.shape[0]]
+        test_y1 = test_y1[:test_x1.shape[0]]
+    else:
+        test_x2 = test_x2[:test_x1.shape[0]]
+        test_y2 = test_y2[:test_x1.shape[0]]
 
-    def _create(self):
-        self.input_ph = tf.placeholder(tf.float32, shape=[None, 19])
-        self.output = tf.placeholder(tf.float32, shape=[None])
-        with tf.variable_scope(self._name):
-            self.fc1 = fully_connected_layer(self.input_ph, 10, name='fc1')
-            self.fc2 = fully_connected_layer(self.fc1, 2, name='fc2', non_linear_fn=None)
+    max_samples = min(train_x1.shape[0], train_x2.shape[0])
 
-        with tf.variable_scope('prediction'):
-            w = tf.get_variable('lr_weight', shape=[2, 1], initializer=tf.truncated_normal_initializer(stddev=0.01))
-            b = tf.get_variable('lr_bias', shape=[1], initializer=tf.constant_initializer(0.1))
-            self.pred = tf.matmul(self.fc2, w) + b
+    loss = np.zeros((len(range(2, max_samples, stride)), 4))
+    r2 = np.zeros((len(range(2, max_samples, stride)), 4))
+    temp_i = 0
+    for training_samples in range(2, max_samples, stride):
+        loss_temp = np.zeros((num_exprs, 4))
+        r2_temp = np.zeros((num_exprs, 4))
+        for expr_num in range(num_exprs):
+            rand_perm1 = np.random.permutation(train_x1.shape[0])[:training_samples]
+            rand_perm2 = np.random.permutation(train_x2.shape[0])[:training_samples]
+            train_x1_temp, train_y1_temp = train_x1[rand_perm1], train_y1[rand_perm1]
+            train_x2_temp, train_y2_temp = train_x1[rand_perm2], train_y1[rand_perm2]
 
-    def _train(self, sess, iterator, epochs, subject_id, num_samples):
-        # Getting the basic variables required to run loops for the desired number of epochs
-        data, y = next(iterator)
+            data_it1 = DataIterator(train_x1_temp, train_y1_temp, training_samples)
+            data_it2 = DataIterator(train_x2_temp, train_y2_temp, training_samples)
 
-        batch_size = int(data.shape[0])
-        num_cycles = int(np.ceil((epochs * num_samples) / batch_size))
+            tf.reset_default_graph()
+            model = CrossStitchGraph()
+            sess = tf.Session()
+            model._train(sess, data_it1, data_it2, 100, 1, 2, training_samples)
+            _, _, loss_temp[expr_num, 0], loss_temp[expr_num, 1], r2_temp[expr_num, 0], r2_temp[expr_num, 1] = \
+                model.predictions(sess, test_x1, test_y1, test_x2, test_y2)
 
-        # Defining the optimization step of the graph and setting up the summary operation
-        with tf.variable_scope('optimization'):
-            global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
-            self.losses = tf.reduce_mean(tf.square(self.pred - self.output))
-            optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self.losses, global_step=global_step)
-            r_squared = r_squared(y, self.pred)
-            summary_op = summaries(self.losses)
-            saver = tf.train.Saver()
+            tf.reset_default_graph()
+            model = SingleGraph()
+            sess = tf.Session()
+            model._train(sess, data_it1, 100, 1, training_samples)
+            _, loss_temp[expr_num, 2], r2_temp[expr_num, 2] = model.predictions(sess, test_x1, test_y1)
 
-        # Setting up the tensorboard and the checkpoint directory
-        ckpt_dir = './checkpoints/sg_{}_checkpoints/'.format(subject_id)
-        tb_dir = './graphs/{}/'.format(subject_id)
-        make_dir('./checkpoints/')
-        make_dir('./checkpoints/sg_{}_checkpoints/'.format(subject_id))
-
-        # Writing graph to the tensorboard directory
-        writer = tf.summary.FileWriter(tb_dir, sess.graph)
-
-        # This is the main training module of the graph
-        with sess.as_default():
-            sess.run(tf.global_variables_initializer())  # Initializing the variables
-
-            # Checking the checkpoint directory to look for the last trained model
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname(ckpt_dir + '/checkpoint'))
-            if ckpt and ckpt.model_checkpoint_path:
-                saver.restore(sess, ckpt.model_checkpoint_path)
-                print('A better checkpoint is found. Its global_step value is: %d', global_step.eval())
-
-            # Training for the desired number of epochs
-            for step in range(num_cycles - global_step.eval()):
-                _, total_loss, r2, summary = sess.run([optimizer, self.losses, r_squared, summary_op], feed_dict={self.input_ph: data,
-                                                                                              self.output: y})
-                writer.add_summary(summary, global_step=global_step.eval())
-                saver.save(sess, ckpt_dir, global_step.eval())
-                print("Step {} : Training Loss = {}, R2: {}".format(step, total_loss, r2))
-                data, y = next(iterator)
-
-    def predictions(self, sess, test_data, test_outputs):
-        prediction, total_loss = sess.run([self.fc2, self.losses], feed_dict={self.input_ph: test_data, self.output: test_outputs})
-        return prediction, total_loss
-
-
-class CrossStitchGraph:
-    """
-    This is the cross-stitched network where we can pass two input and get two outputs.
-    Hyperparameters:
-    alpha_mat: is a 2x2 matrix which determines the sharing of parameters between the two graphs
-
-    """
-    def __init__(self, name='csg_net1', alpha_mat=np.asarray([[0.9, 0.1], [0.1, 0.9]]), learning_rate=0.001):
-        self._alpha_mat = alpha_mat
-        self._name = name
-        self._learning_rate = learning_rate
-        self._create()
-
-    def _create(self):
-        self.input_ph_g1 = tf.placeholder(tf.float32, shape=[None, 19])
-        self.y_g1 = tf.placeholder(tf.float32, shape=[None])
-        self.input_ph_g2 = tf.placeholder(tf.float32, shape=[None, 19])
-        self.y_g2 = tf.placeholder(tf.float32, shape=[None])
-        with tf.variable_scope(self._name):
-            self.fc1_g1 = fully_connected_layer(self.input_ph_g1, 10, name='fc1_g1')
-            self.fc1_g2 = fully_connected_layer(self.input_ph_g2, 10, name='fc1_g2')
-            self.fc1_cs_g1, self.fc1_cs_g2 = cross_stitch(self.fc1_g1, self.fc1_g2, self._alpha_mat)
-
-            self.fc2_g1 = fully_connected_layer(self.fc1_cs_g1, 2, name='fc2_g1', non_linear_fn=None)
-            self.fc2_g2 = fully_connected_layer(self.fc1_cs_g2, 2, name='fc2_g2', non_linear_fn=None)
-
-            with tf.variable_scope('prediction_g1'):
-                w = tf.get_variable('lr_weight_1', shape=[2, 1], initializer=tf.truncated_normal_initializer(stddev=0.01))
-                b = tf.get_variable('lr_bias_1', shape=[1], initializer=tf.constant_initializer(0.1))
-                self.pred_g1 = tf.matmul(self.fc2_g1, w) + b
-
-            with tf.variable_scope('prediction_g2'):
-                w = tf.get_variable('lr_weight_2', shape=[2, 1], initializer=tf.truncated_normal_initializer(stddev=0.01))
-                b = tf.get_variable('lr_bias_2', shape=[1], initializer=tf.constant_initializer(0.1))
-                self.pred_g2 = tf.matmul(self.fc2_g2, w) + b
-
-    def _train(self, sess, iterator1, iterator2, epochs, subject_id1, subject_id2, num_samples):
-        # Getting the basic variables required to run loops for the desired number of epochs
-        data1, y1 = next(iterator1)
-        data2, y2 = next(iterator2)
-
-        batch_size = int(data1.shape[0])
-        num_cycles = int(np.ceil((epochs * num_samples) / batch_size))
-
-        # Defining the optimization step of the graph and setting up the summary operation
-        with tf.variable_scope('optimization'):
-            global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
-            self.loss_1 = tf.square(self.pred_g1 - self.y_g1)
-            self.loss_2 = tf.square(self.pred_g2 - self.y_g2)
-            self.losses = tf.reduce_mean(tf.concat([self.loss_1, self.loss_2], axis=0), name='combined_loss')
-            optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self.losses, global_step=global_step)
-            self.r_squared1 = r_squared(self.y_g1, self.pred_g1)
-            self.r_squared2 = r_squared(self.y_g2, self.pred_g2)
-            summary_op = summaries(self.losses, tf.reduce_mean(self.loss_1, name='loss_1'), tf.reduce_mean(self.loss_2, name='loss_2'))
-            saver = tf.train.Saver()
-
-        # Setting up the tensorboard and the checkpoint directory
-        ckpt_dir = './checkpoints/sg_{}{}_checkpoints/'.format(subject_id1, subject_id2)
-        tb_dir = './graphs/{}{}/'.format(subject_id1, subject_id2)
-        make_dir('./checkpoints/')
-        make_dir('./checkpoints/cg_{}{}_checkpoints/'.format(subject_id1, subject_id2))
-
-        # Writing graph to the tensorboard directory
-        writer = tf.summary.FileWriter(tb_dir, sess.graph)
-
-        # This is the main training module of the graph
-        with sess.as_default():
-            sess.run(tf.global_variables_initializer())  # Initializing the variables
-
-            # Checking the checkpoint directory to look for the last trained model
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname(ckpt_dir + '/checkpoint'))
-            if ckpt and ckpt.model_checkpoint_path:
-                saver.restore(sess, ckpt.model_checkpoint_path)
-                print('A better checkpoint is found. Its global_step value is: %d', global_step.eval())
-
-            # Training for the desired number of epochs
-            for step in range(num_cycles - global_step.eval()):
-                _, total_loss, r2_g1, r2_g2, summary = sess.run([optimizer, self.losses, self.r_squared1, self.r_squared2,
-                                                                 summary_op], feed_dict={self.input_ph_g1: data1,
-                                                                                         self.input_ph_g2: data2,
-                                                                                         self.y_g1: y1,
-                                                                                         self.y_g2: y2})
-                writer.add_summary(summary, global_step=global_step.eval())
-                saver.save(sess, ckpt_dir, global_step.eval())
-                print("Step {} : Training Loss = {}, R2_1: {}, R2_2: {}".format(step, total_loss, r2_g1, r2_g2))
-                data1, y1 = next(iterator1)
-                data2, y2 = next(iterator2)
-
-    def predictions(self, sess, test_data1, test_outputs1, test_data2, test_outputs2):
-        pred1, pred2, loss1, loss2, r2_1, r2_2 = sess.run([self.pred_g1, self.pred_g2, self.loss_1, self.loss_2,
-                                                           self.r_squared1, self.r_squared2],
-                                                          feed_dict={self.input_ph_g1: test_data1, self.input_ph_g2: test_data2,
-                                                                     self.y_g1: test_outputs1, self.y_g2: test_outputs2})
-        return pred1, pred2, loss1.mean(), loss2.mean(), r2_1, r2_2
-
+            tf.reset_default_graph()
+            model = SingleGraph()
+            sess = tf.Session()
+            model._train(sess, data_it2, 100, 2, training_samples)
+            _, loss_temp[expr_num, 3], r2_temp[expr_num, 3] = model.predictions(sess, test_x2, test_y2)
+    loss[temp_i] = np.mean(loss_temp, 1)
+    r2[temp_i] = np.mean(r2_temp, 1)
+    temp_i += 1
+    return loss, r2, range(2, max_samples, stride)
 
 if __name__ == '__main__':
     # Setting up the parameters
@@ -228,27 +112,33 @@ if __name__ == '__main__':
                        'shimmer_apq3', 'shimmer_apq5', 'shimmer_apq11', 'shimmer_dda',
                        'nhr', 'hnr', 'rpde', 'dfa', 'ppe']
 
-
+    ###################### This was used earlier to create cross stitched graphs #######################################
     # Cross Stitched graph
-    subject_id1 = 1
-    subject_id2 = 2
-    train_x1, train_y1, test_x1, test_y1 = subjectIDNpArr(subject_id1, pd_data)
-    train_x2, train_y2, test_x2, test_y2 = subjectIDNpArr(subject_id2, pd_data)
+    # subject_id1 = 1
+    # subject_id2 = 2
+    # train_x1, train_y1, test_x1, test_y1 = subjectIDNpArr(subject_id1, pd_data)
+    # train_x2, train_y2, test_x2, test_y2 = subjectIDNpArr(subject_id2, pd_data)
+    #
+    # data_it1 = DataIterator(train_x1, train_y1, batch_size)
+    # data_it2 = DataIterator(train_x2, train_y2, batch_size)
+    #
+    # tf.reset_default_graph()
+    # model = CrossStitchGraph()
+    # sess = tf.Session()
+    # model._train(sess, data_it1, data_it2, 100, 1, 2, int(train_x1.shape[0]))
+    # if test_x1.shape[0] > test_x2.shape[0]:
+    #     test_x1 = test_x1[:test_x2.shape[0]]
+    #     test_y1 = test_y1[:test_x1.shape[0]]
+    # else:
+    #     test_x2 = test_x2[:test_x1.shape[0]]
+    #     test_y2 = test_y2[:test_x1.shape[0]]
+    #
+    # _, _, loss1, loss2, r2_1, r2_2 = model.predictions(sess, test_x1, test_y1, test_x2, test_y2)
+    #
+    # print('Loss for the testing set: 1: {}, 2: {}; R-squared: 1: {}, 2: {}'.format(loss1, loss2, r2_1, r2_2))
 
-    data_it1 = DataIterator(train_x1, train_y1, batch_size)
-    data_it2 = DataIterator(train_x2, train_y2, batch_size)
-
-    tf.reset_default_graph()
-    model = CrossStitchGraph()
-    sess = tf.Session()
-    model._train(sess, data_it1, data_it2, 100, 1, 2, int(train_x1.shape[0]))
-    if test_x1.shape[0] > test_x2.shape[0]:
-        test_x1 = test_x1[:test_x2.shape[0]]
-        test_y1 = test_y1[:test_x1.shape[0]]
-    else:
-        test_x2 = test_x2[:test_x1.shape[0]]
-        test_y2 = test_y2[:test_x1.shape[0]]
-
-    _, _, loss1, loss2, r2_1, r2_2 = model.predictions(sess, test_x1, test_y1, test_x2, test_y2)
-
-    print('Loss for the testing set: 1: {}, 2: {}; R-squared: 1: {}, 2: {}'.format(loss1, loss2, r2_1, r2_2))
+    loss, r2, num_expr = exp_dif_training_examples(pd_data=pd_data, subject_id1=1, subject_id2=2, stride=5, num_exprs=100)
+    np.savez('./loss_change_with_training_examples', {'loss': loss,
+                                                      'r2': r2,
+                                                      'num_experiments': num_expr})
+    a = 1
