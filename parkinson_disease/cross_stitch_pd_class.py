@@ -72,7 +72,6 @@ def exp_dif_training_examples(pd_data, subject_id1=1, subject_id2=2, stride=5, n
         loss_temp = np.zeros((num_exprs, 4))
         r2_temp = np.zeros((num_exprs, 4))
         for expr_num in range(num_exprs):
-            logging.info("expr_number {}".format(expr_num))
             rand_perm1 = np.random.permutation(train_x1.shape[0])[:training_samples]
             rand_perm2 = np.random.permutation(train_x2.shape[0])[:training_samples]
             train_x1_temp, train_y1_temp = train_x1[rand_perm1], train_y1[rand_perm1]
@@ -107,15 +106,15 @@ def exp_dif_training_examples(pd_data, subject_id1=1, subject_id2=2, stride=5, n
             sess = tf.Session()
             model._train(sess, data_it2, 100, 2, training_samples)
             _, loss_temp[expr_num, 3], r2_temp[expr_num, 3] = model.predictions(sess, test_x2, test_y2)
-        loss[temp_i] = np.mean(loss_temp, 1)
-        r2[temp_i] = np.mean(r2_temp, 1)
+        loss[temp_i] = np.mean(loss_temp, 0)
+        r2[temp_i] = np.mean(r2_temp, 0)
+        logging.info("{}, {}, {}, {}, {}".format(str(training_samples), loss[temp_i, 0], loss[temp_i, 1], loss[temp_i, 2], loss[temp_i, 3]))
         temp_i += 1
-        logging.INFO("{}, {}, {}, {}, {}".format(training_samples, loss[temp_i, 0], loss[temp_i, 1], loss[temp_i, 2], loss[temp_i, 3]))
     return loss, r2, range(2, max_samples, stride)
 
 if __name__ == '__main__':
     # Setting up the parameters
-    learning_rate = 0.001
+    learning_rate = 0.0001
     batch_size = 25
 
     # Adding logging to the file

@@ -38,7 +38,7 @@ class SingleGraph:
         # Defining the optimization step of the graph and setting up the summary operation
         with tf.variable_scope('optimization'):
             global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
-            self.losses = tf.reduce_mean(tf.square(self.pred - self.output))
+            self.losses = tf.reduce_sum(tf.square(tf.reshape(self.pred, (-1,)) - self.output))
             optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self.losses, global_step=global_step)
             self.r_squared = r_squared(self.output, self.pred)
             summary_op = summaries(self.losses)
@@ -173,3 +173,20 @@ class CrossStitchGraph:
                                                                      self.y_g1: test_outputs1, self.y_g2: test_outputs2,
                                                                      self._alpha_mat: np.asarray([[1, 0], [0, 1]])})
         return pred1, pred2, np.sqrt(loss1.mean()), np.sqrt(loss2.mean()), r2_1, r2_2
+
+
+def DataIterator(features, labels, batch_size):
+    """
+    """
+    num_samples = features.shape[0]
+    chunk_start_marker = 0
+    while True:
+        if chunk_start_marker + batch_size > num_samples:
+            permutation = np.random.permutation(num_samples)
+            features = features[permutation]
+            labels = labels[permutation]
+            chunk_start_marker = 0
+        batch_features = features[chunk_start_marker:(chunk_start_marker+batch_size)]
+        batch_labels = labels[chunk_start_marker:(chunk_start_marker+batch_size)]
+        chunk_start_marker += batch_size
+        yield batch_features, batch_labels
