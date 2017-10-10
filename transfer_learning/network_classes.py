@@ -38,8 +38,7 @@ class TaskEmbeddingNetwork:
 
         with tf.variable_scope('input_network'):
 
-            self.task_embedding_tile = tf.reshape(tf.tile(self.task_embedding, [1,self._data_batch_size]),
-                                                  [self._data_batch_size, -1])
+            self.task_embedding_tile = tf.tile(self.task_embedding, [self._data_batch_size, 1])
 
             self.input = tf.concat([self.input_batch, self.task_embedding_tile], axis=1)
             self.inp_fc0 = fully_connected_layer(self.input, self._input_network_layers[0], name='inp_fc0')
