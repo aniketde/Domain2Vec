@@ -5,6 +5,10 @@ Overleaf link - https://www.overleaf.com/9841741tdmzmksynxzs
 2) Ankit - http://www.pnas.org/content/114/13/3521.full.pdf, https://arxiv.org/pdf/1605.06391.pdf 
 3) Aniket - https://arxiv.org/pdf/1705.08142.pdf, http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7780802 
 
+Things to remember:
+1) Replace fully connected layers with conv. layers and take mean of the output to get the task embedding
+2) Vary the number of examples for the task_batch_size
+
 
 Datasets - 
 
