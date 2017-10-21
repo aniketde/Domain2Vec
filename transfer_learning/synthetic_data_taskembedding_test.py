@@ -71,11 +71,12 @@ if __name__ == '__main__':
 
     tf.reset_default_graph()
     model = TaskEmbeddingNetwork(input_features_dim=2,task_embedding_layers=[1,4], task_batch_size=task_batch_size,
-                                 data_batch_size=data_batch_size, input_network_layers=[2], le)
+                                 data_batch_size=data_batch_size, input_network_layers=[2],learning_rate=0.001)
     sess = tf.Session()
     model._train(sess, iterator=data_iter, epochs=100, subject_id=1, num_samples=int(x_train.shape[0]))
 
     data_iter_test = DataIterator(x_test, y_test, data_batch_size=task_batch_size, task_batch_size=task_batch_size)
+
     _, loss, accuracy, coor_with_theta = model.predictions(sess, data_iter_test)
 
     print('Loss for the testing set: loss: {}, Accuracy: {}, Coor: {}'.format(loss, accuracy, coor_with_theta))
