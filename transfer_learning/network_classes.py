@@ -65,8 +65,8 @@ class TaskEmbeddingNetworkNaive:
                 _, total_loss, accuracy = sess.run([optimizer, self.losses, self.accuracy], feed_dict={
                     self.task_batch: task_data, self.input_batch: batch_data, self.output: y})
                 task_data, batch_data, y = next(iterator)
-                if step % num_samples == 0:
-                    print("Epoch {} : Training Loss = {}, Accuracy: {}".format(step // num_samples, total_loss, accuracy))
+                if (step*batch_size) % num_samples == 0:
+                    print("Epoch {} : Training Loss = {}, Accuracy: {}".format((step*batch_size) // num_samples, total_loss, accuracy))
 
     def predictions(self, sess, test_iterator, test_tasks, num_samples):
         """
@@ -80,13 +80,15 @@ class TaskEmbeddingNetworkNaive:
         pred_vector = np.zeros((num_samples,))
         total_loss = 0
         correct_predictions = 0
+        j = 0
         for i in range(test_tasks):
             task_batch, input_batch, labels_batch = next(test_iterator)
             prediction, loss, _ = sess.run([self.pred, self.losses, self.accuracy], feed_dict=
             {self.task_batch: task_batch, self.input_batch: input_batch, self.output: labels_batch})
-            pred_vector[i:i*labels_batch.shape[0]] = np.copy(prediction)
+            pred_vector[j:(j+labels_batch.shape[0])] = np.copy(prediction)
             total_loss += loss
             correct_predictions += np.sum(labels_batch == prediction)
+            j += labels_batch.shape[0]
         accuracy = correct_predictions / num_samples
         return prediction, total_loss, accuracy
 

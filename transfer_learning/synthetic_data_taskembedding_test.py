@@ -19,7 +19,6 @@ def DataIterator(features, labels, data_batch_size, task_batch_size):
     while True:
         if data_chunk_start_marker + data_batch_size > num_samples:
             permutation = np.array([])
-
             # Randomize data while maintaining task specific correspondence
             for i in range(int(num_samples/task_batch_size)):
                 perm = (i) * task_batch_size + np.random.permutation(task_batch_size)
@@ -31,14 +30,14 @@ def DataIterator(features, labels, data_batch_size, task_batch_size):
             data_chunk_start_marker = 0
 
         # Update data_chunk_start_marker if task_batch risks containing examples from two different tasks
-        if int((data_chunk_start_marker + data_batch_size)/task_batch_size) != int(data_chunk_start_marker/task_batch_size):
-            data_chunk_start_marker = (int(data_chunk_start_marker/task_batch_size) + 1) * task_batch_size
+        if (data_chunk_start_marker + data_batch_size) % task_batch_size != 0:
+            if int((data_chunk_start_marker + data_batch_size)/task_batch_size) != int(data_chunk_start_marker/task_batch_size):
+                data_chunk_start_marker = (int(data_chunk_start_marker/task_batch_size) + 1) * task_batch_size
 
         task_chunk_start_marker = int(data_chunk_start_marker/task_batch_size) * task_batch_size
         data_batch_features = features[data_chunk_start_marker:(data_chunk_start_marker + data_batch_size)]
         task_batch_features = features[task_chunk_start_marker:(task_chunk_start_marker + task_batch_size)]
         batch_labels = labels[data_chunk_start_marker:(data_chunk_start_marker + data_batch_size)]
-
         data_chunk_start_marker += data_batch_size
         yield task_batch_features, data_batch_features, batch_labels
 
@@ -139,7 +138,7 @@ if __name__ == '__main__':
             total_training_tasks = train_task_ind.shape[0]
             total_development_tasks = dev_task_ind.shape[0]
             train_features, train_labels = x_train_dev[train_index], y_train_dev[train_index]
-            dev_features, dev_labels = x_train_dev[dev_index], x_train_dev[dev_index]
+            dev_features, dev_labels = x_train_dev[dev_index], y_train_dev[dev_index]
 
             data_iter = DataIterator(train_features, train_labels, data_batch_size=data_batch_size,
                                      task_batch_size=task_batch_size)
@@ -153,8 +152,8 @@ if __name__ == '__main__':
                                               data_batch_size=data_batch_size,
                                               learning_rate=learning_rate)
             sess = tf.Session()
-            model._train(sess, iterator=data_iter, epochs=100, num_samples=int(train_features.shape[0]))
-            data_iter_test = DataIterator(dev_index, dev_labels, data_batch_size=task_batch_size,
+            model._train(sess, iterator=data_iter, epochs=10, num_samples=int(train_features.shape[0]))
+            data_iter_test = DataIterator(dev_features, dev_labels, data_batch_size=data_batch_size,
                                           task_batch_size=task_batch_size)
             _, dev_loss, dev_accuracy = model.predictions(sess, data_iter_test, test_tasks=total_development_tasks,
                                                           num_samples=examples_per_task*total_development_tasks)
