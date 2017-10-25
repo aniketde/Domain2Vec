@@ -152,10 +152,10 @@ if __name__ == '__main__':
                                               data_batch_size=data_batch_size,
                                               learning_rate=learning_rate)
             sess = tf.Session()
-            model._train(sess, iterator=data_iter, epochs=10, num_samples=int(train_features.shape[0]))
+            model._train(sess, iterator=data_iter, epochs=100, num_samples=int(train_features.shape[0]))
             data_iter_test = DataIterator(dev_features, dev_labels, data_batch_size=data_batch_size,
                                           task_batch_size=task_batch_size)
-            _, dev_loss, dev_accuracy = model.predictions(sess, data_iter_test, test_tasks=total_development_tasks,
+            dev_pred, dev_loss, dev_accuracy = model.predictions(sess, data_iter_test, test_tasks=total_development_tasks,
                                                           num_samples=examples_per_task*total_development_tasks)
             print('Development Set: Exper:{}, kfold:{}, loss: {}, Accuracy: {}'.format(experiment, kfold,
                                                                                       dev_loss, dev_accuracy))

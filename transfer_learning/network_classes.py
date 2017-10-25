@@ -81,14 +81,16 @@ class TaskEmbeddingNetworkNaive:
         total_loss = 0
         correct_predictions = 0
         j = 0
-        for i in range(test_tasks):
-            task_batch, input_batch, labels_batch = next(test_iterator)
+        task_batch, input_batch, labels_batch = next(test_iterator)
+
+        for i in range(test_tasks * (task_batch.shape[0]//labels_batch.shape[0])):
             prediction, loss, _ = sess.run([self.pred, self.losses, self.accuracy], feed_dict=
             {self.task_batch: task_batch, self.input_batch: input_batch, self.output: labels_batch})
             pred_vector[j:(j+labels_batch.shape[0])] = np.copy(prediction)
             total_loss += loss
             correct_predictions += np.sum(labels_batch == prediction)
             j += labels_batch.shape[0]
+            task_batch, input_batch, labels_batch = next(test_iterator)
         accuracy = correct_predictions / num_samples
         return prediction, total_loss, accuracy
 
