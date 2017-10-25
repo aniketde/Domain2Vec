@@ -51,8 +51,9 @@ class TaskEmbeddingNetworkNaive:
             self.losses = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.output,
                                                                                         logits=self.fc_fnl))
             self.weight_norm = tf.reduce_sum(self._weight_decay * tf.stack(
-                [tf.nn.l2_loss(i) for i in tf.get_collection('wd_variables')]), name='weight_norm')
+                [tf.nn.l2_loss(i.initialized_value()) for i in tf.get_collection('wd_variables')]), name='weight_norm')
             self.total_loss = tf.add(self.losses, self.weight_norm)
+            # self.total_loss = self.losses
             optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self.total_loss, global_step=global_step)
             self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.pred, self.output), tf.float32))
 
@@ -61,7 +62,7 @@ class TaskEmbeddingNetworkNaive:
             sess.run(tf.global_variables_initializer())  # Initializing the variables
             # Training for the desired number of epochs
             for step in range(num_cycles - global_step.eval()):
-                _, total_loss, accuracy = sess.run([self.losses, self.accuracy], feed_dict={
+                _, total_loss, accuracy = sess.run([optimizer, self.losses, self.accuracy], feed_dict={
                     self.task_batch: task_data, self.input_batch: batch_data, self.output: y})
                 task_data, batch_data, y = next(iterator)
                 if step % num_samples == 0:
