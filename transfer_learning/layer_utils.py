@@ -2,6 +2,7 @@ import tensorflow as tf
 import os
 import numpy as np
 
+
 def fc_layer_naive(input_tensor,
                    out_dim,
                    name,
