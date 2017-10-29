@@ -5,6 +5,13 @@ from layer_utils import *
 from network_classes import *
 from sklearn.model_selection import KFold
 import pickle
+from sklearn.datasets import fetch_mldata
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.ndimage import rotate
+from scipy.misc import imread, imshow
+
+
 
 def DataIterator(features, labels, data_batch_size, task_batch_size):
     """
@@ -68,48 +75,56 @@ def shuffle(features, labels, angle, moment_vectors, tot_tasks=100, examples_per
 if __name__ == '__main__':
     # Creating the synthetic task embedding samples
     tasks = 100
-    examples_per_task = 1024
+    examples_per_task = 128
     traintask_perc = 0.8
-    data_batch_size = 256
-    task_batch_size = 1024
+    data_batch_size = 64
+    task_batch_size = 128
     total_size = tasks * examples_per_task
     training_tasks = int(tasks * traintask_perc)
     epochs = 10
-    # angle = np.random.uniform(low=0.0, high=np.pi, size=tasks)
-    # x_all_tasks = np.zeros((total_size, 2))
-    # y_all_tasks = np.zeros((total_size,))
-    # moment_vectors = np.zeros((tasks, 4))
-    # j = 0
-    # for i in range(tasks):
-    #     x = np.random.uniform(-1, 1, size=(examples_per_task, 2))
-    #     x[:, 1] = x[:, 1] * 0.5 + 0.5
-    #     y = np.ones((examples_per_task,))
-    #     y[x[:, 0] < 0] = 0
-    #     r = np.array([[np.cos(angle[i]), np.sin(angle[i])],
-    #                   [-np.sin(angle[i]), np.cos(angle[i])]])
-    #     x = np.dot(x, r)
-    #     plt.scatter(x[:, 0], x[:, 1], c=y)
-    #     plt.ylabel('angle is {}'.format(angle[i] * 180 / np.pi))
-    #     y_all_tasks[j:(j + examples_per_task)] = y
-    #     x_all_tasks[j:(j + examples_per_task)] = x
-    #     moment_vectors[i] = list(np.mean(x, axis=0)) + list(np.std(x, axis=0))
-    #     j += examples_per_task
-    # y_all_tasks.astype(np.int64)
-    # plt.savefig("input_data.png")
-    # np.savez('./examples/synthetic_data.npz', x=x_all_tasks, y=y_all_tasks, angle=angle, moment=moment_vectors)
 
-    # x_all_tasks, y_all_tasks, angle, moment_vectors = shuffle(x_all_tasks, y_all_tasks, angle, moment_vectors)
-    # Creating the training and testing datasets
-    # x_train_dev, x_test = x_all_tasks[:int(total_size * traintask_perc)], x_all_tasks[int(total_size * traintask_perc):]
-    # y_train_dev, y_test = y_all_tasks[:int(total_size * traintask_perc)], y_all_tasks[int(total_size * traintask_perc):]
+    mnist = fetch_mldata('MNIST original')
+    XMnist = mnist.data
+    YMnist = mnist.target
+    print(XMnist.shape)
+    np.unique(mnist.target)
+
+    X = np.copy(XMnist)
+    Y = np.copy(YMnist)
+    norig, d = X.shape
+    total_size = tasks * examples_per_task
+    angle = 180 * np.random.rand(tasks)
+    x_all_tasks = np.zeros([total_size, d])
+    y_all_tasks = np.zeros((total_size,))
+    for j in range(0, tasks):
+        theta = angle[j]
+        idx = np.random.choice(norig, examples_per_task)
+        X_new = np.zeros([examples_per_task, d])
+        Y_new = np.zeros([examples_per_task, ])
+        for i in range(0, examples_per_task):
+            img = X[idx[i], :].reshape([int(np.sqrt(d)), int(np.sqrt(d))])
+            rotate_img = rotate(img, theta, reshape=False)
+            rotate_img = rotate_img.reshape([d])
+            X_new[i, :] = rotate_img
+            Y_new[i] = Y[idx[i]]
+
+        x_all_tasks[examples_per_task*j:examples_per_task*(j + 1)] = X_new
+        y_all_tasks[examples_per_task*j:examples_per_task*(j + 1)] = Y_new
+        #print(j,examples_per_task)
+    y_all_tasks.astype(np.int64)
+    #print(x_all_tasks.shape)
+
+    #Creating the training and testing datasets
+    x_train_dev, x_test = x_all_tasks[:int(total_size * traintask_perc)], x_all_tasks[int(total_size * traintask_perc):]
+    y_train_dev, y_test = y_all_tasks[:int(total_size * traintask_perc)], y_all_tasks[int(total_size * traintask_perc):]
     # np.savez('./examples/syn_data_train_test.npz', x_train_dev=x_train_dev, x_test=x_test, y_train_dev=y_train_dev,
     #          y_test=y_test)
 
-    temp = np.load('./examples/synthetic_data.npz')
-    x_all_tasks, y_all_tasks, angle, moment_vectors = temp['x'], temp['y'], temp['angle'], temp['moment']
+    #temp = np.load('./examples/synthetic_data.npz')
+    #x_all_tasks, y_all_tasks, angle, moment_vectors = temp['x'], temp['y'], temp['angle'], temp['moment']
 
-    temp = np.load('./examples/syn_data_train_test.npz')
-    x_train_dev, y_train_dev, x_test, y_test = temp['x_train_dev'], temp['y_train_dev'], temp['x_test'], temp['y_test']
+    #temp = np.load('./examples/syn_data_train_test.npz')
+    #x_train_dev, y_train_dev, x_test, y_test = temp['x_train_dev'], temp['y_train_dev'], temp['x_test'], temp['y_test']
 
     ################################### Task embedding network #########################################################
     # Range of the hyperparameters
@@ -155,7 +170,7 @@ if __name__ == '__main__':
             data_iter = DataIterator(train_features, train_labels, data_batch_size=data_batch_size,
                                      task_batch_size=task_batch_size)
             tf.reset_default_graph()
-            model = TaskEmbeddingNetworkNaive(input_features_dim=2,
+            model = TaskEmbeddingNetworkNaive(input_features_dim=784,
                                               task_emb_shape=d,
                                               input_hid_layer_shape=h1,
                                               task_emb_hid_shape=n1,
@@ -185,8 +200,10 @@ if __name__ == '__main__':
     result_dict = {}
     result_dict['hp_accuracy'] = hp_accuracy
     result_dict['hp_space'] = hp_space
-    result_dict['best_hyper_accuracy'] = hp_accuracy[best_index]
-    result_dict['best_hyper_loss'] = hp_loss[best_index_2]
+    result_dict['best_accuracy'] = hp_accuracy[best_index]
+    result_dict['best_loss'] = hp_loss[best_index_2]
+    result_dict['best_hyper_accuracy_sg'] = hp_space[best_index]
+    result_dict['best_hyper_loss_sg'] = hp_space[best_index_2]
 
 
     # Single graph
@@ -231,7 +248,7 @@ if __name__ == '__main__':
                                      task_batch_size=task_batch_size)
             tf.reset_default_graph()
             model = SingleGraph(hidden_layers=h1,
-                                input_features_dim=2,
+                                input_features_dim=784,
                                 learning_rate=learning_rate,
                                 weight_decay=weight_decay)
             sess = tf.Session()
@@ -254,9 +271,11 @@ if __name__ == '__main__':
 
     result_dict['hp_accuracy_sg'] = hp_accuracy_sg
     result_dict['hp_space_sg'] = hp_space_sg
-    result_dict['best_hyper_accuracy_sg'] = hp_accuracy_sg[best_index]
-    result_dict['best_hyper_loss_sg'] = hp_loss_sg[best_index_2]
+    result_dict['best_accuracy_sg'] = hp_accuracy_sg[best_index]
+    result_dict['best_loss_sg'] = hp_loss_sg[best_index_2]
+    result_dict['best_hyper_accuracy_sg'] = hp_space_sg[best_index]
+    result_dict['best_hyper_loss_sg'] = hp_space_sg[best_index_2]
 
-    filehandler = open(r"result_file.p", "wb")
+    filehandler = open(r"result_file_128.p", "wb")
     pickle.dump(result_dict, filehandler)
 

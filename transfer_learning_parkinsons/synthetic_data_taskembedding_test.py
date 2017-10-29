@@ -5,6 +5,7 @@ from layer_utils import *
 from network_classes import *
 from sklearn.model_selection import KFold
 import pickle
+import pandas as pd
 
 def DataIterator(features, labels, data_batch_size, task_batch_size):
     """
@@ -65,51 +66,59 @@ def shuffle(features, labels, angle, moment_vectors, tot_tasks=100, examples_per
     labels = labels[permutation]
     return features, labels, angle, moment_vectors
 
+
+def subjectIDNpArr(task_id, dataframe, examples_per_task):
+    """
+    This function returns the numpy array for the corresponding subject in the dataframe
+    :param subject_id: the subject id to subset the dataframe
+    :param dataframe: dataframe which we have to subset and convert to numpy array
+    :return: numpy array with N-1 columns, where dataframe has N columns
+    """
+
+    np_data = pd_data.loc[dataframe.subject_id == task_id]
+
+    # Getting features and labels for training set
+    x_features = np_data.drop(["subject_id", 'total_updrs', 'motor_updrs'], axis=1).values
+    y_labels = np_data.total_updrs.values
+    idx = np.random.choice(x_features.shape[0], examples_per_task)
+    x_features = x_features[idx, :]
+    y_labels = y_labels[idx,]
+
+    return x_features, y_labels
+
 if __name__ == '__main__':
+
+    url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/parkinsons/telemonitoring/parkinsons_updrs.data'
+    pd_data = pd.read_csv(url)
+    pd_data.columns.values[0] = "subject_id"
+    pd_data.columns = ['subject_id', 'age', 'sex', 'test_time', 'motor_updrs',
+                       'total_updrs', 'jitter_perc', 'jitter_abs', 'jitter_rap',
+                       'jitter_ppq5', 'jitter_ddp', 'shimmer', 'shimmer_db',
+                       'shimmer_apq3', 'shimmer_apq5', 'shimmer_apq11', 'shimmer_dda',
+                       'nhr', 'hnr', 'rpde', 'dfa', 'ppe']
+
     # Creating the synthetic task embedding samples
-    tasks = 100
-    examples_per_task = 1024
-    traintask_perc = 0.8
-    data_batch_size = 256
-    task_batch_size = 1024
+    tasks = 40
+    examples_per_task = 100
+    traintask_perc = 0.75
+    data_batch_size = 32
+    task_batch_size = 100
     total_size = tasks * examples_per_task
     training_tasks = int(tasks * traintask_perc)
     epochs = 10
-    # angle = np.random.uniform(low=0.0, high=np.pi, size=tasks)
-    # x_all_tasks = np.zeros((total_size, 2))
-    # y_all_tasks = np.zeros((total_size,))
-    # moment_vectors = np.zeros((tasks, 4))
-    # j = 0
-    # for i in range(tasks):
-    #     x = np.random.uniform(-1, 1, size=(examples_per_task, 2))
-    #     x[:, 1] = x[:, 1] * 0.5 + 0.5
-    #     y = np.ones((examples_per_task,))
-    #     y[x[:, 0] < 0] = 0
-    #     r = np.array([[np.cos(angle[i]), np.sin(angle[i])],
-    #                   [-np.sin(angle[i]), np.cos(angle[i])]])
-    #     x = np.dot(x, r)
-    #     plt.scatter(x[:, 0], x[:, 1], c=y)
-    #     plt.ylabel('angle is {}'.format(angle[i] * 180 / np.pi))
-    #     y_all_tasks[j:(j + examples_per_task)] = y
-    #     x_all_tasks[j:(j + examples_per_task)] = x
-    #     moment_vectors[i] = list(np.mean(x, axis=0)) + list(np.std(x, axis=0))
-    #     j += examples_per_task
-    # y_all_tasks.astype(np.int64)
-    # plt.savefig("input_data.png")
-    # np.savez('./examples/synthetic_data.npz', x=x_all_tasks, y=y_all_tasks, angle=angle, moment=moment_vectors)
 
-    # x_all_tasks, y_all_tasks, angle, moment_vectors = shuffle(x_all_tasks, y_all_tasks, angle, moment_vectors)
-    # Creating the training and testing datasets
-    # x_train_dev, x_test = x_all_tasks[:int(total_size * traintask_perc)], x_all_tasks[int(total_size * traintask_perc):]
-    # y_train_dev, y_test = y_all_tasks[:int(total_size * traintask_perc)], y_all_tasks[int(total_size * traintask_perc):]
-    # np.savez('./examples/syn_data_train_test.npz', x_train_dev=x_train_dev, x_test=x_test, y_train_dev=y_train_dev,
-    #          y_test=y_test)
+    x_all_tasks = np.zeros((total_size, 19))
+    y_all_tasks = np.zeros((total_size,))
+    j = 0
+    for task_id in range(1, tasks+1):
+        x_features, y_labels = subjectIDNpArr(task_id, pd_data, examples_per_task)
+        y_all_tasks[j:(j + examples_per_task)] = y_labels
+        x_all_tasks[j:(j + examples_per_task)] = x_features
 
-    temp = np.load('./examples/synthetic_data.npz')
-    x_all_tasks, y_all_tasks, angle, moment_vectors = temp['x'], temp['y'], temp['angle'], temp['moment']
+    x_all_tasks = (x_all_tasks - np.mean(x_all_tasks))/(np.std(x_all_tasks))
 
-    temp = np.load('./examples/syn_data_train_test.npz')
-    x_train_dev, y_train_dev, x_test, y_test = temp['x_train_dev'], temp['y_train_dev'], temp['x_test'], temp['y_test']
+    x_train_dev, x_test = x_all_tasks[:int(total_size * traintask_perc)], x_all_tasks[int(total_size * traintask_perc):]
+    y_train_dev, y_test = y_all_tasks[:int(total_size * traintask_perc)], y_all_tasks[int(total_size * traintask_perc):]
 
     ################################### Task embedding network #########################################################
     # Range of the hyperparameters
@@ -144,8 +153,8 @@ if __name__ == '__main__':
                 train_index[(i*examples_per_task):(i+1)*examples_per_task] = np.arange(
                     task*examples_per_task, (task+1) * examples_per_task)
             for i, task in enumerate(dev_task_ind):
-                dev_index[(i * examples_per_task):(i + 1) * examples_per_task] = np.arange(
-                    task * examples_per_task, (task + 1) * examples_per_task)
+                #print(x_train_dev.shape,train_index.shape, dev_index.shape,i, i * examples_per_task, (i + 1) * examples_per_task,  task * examples_per_task,  (task + 1) * examples_per_task)
+                dev_index[(i * examples_per_task):(i + 1) * examples_per_task] = np.arange(task * examples_per_task, (task + 1) * examples_per_task)
 
             total_training_tasks = train_task_ind.shape[0]
             total_development_tasks = dev_task_ind.shape[0]
@@ -155,7 +164,7 @@ if __name__ == '__main__':
             data_iter = DataIterator(train_features, train_labels, data_batch_size=data_batch_size,
                                      task_batch_size=task_batch_size)
             tf.reset_default_graph()
-            model = TaskEmbeddingNetworkNaive(input_features_dim=2,
+            model = TaskEmbeddingNetworkNaive(input_features_dim=19,
                                               task_emb_shape=d,
                                               input_hid_layer_shape=h1,
                                               task_emb_hid_shape=n1,
@@ -181,7 +190,7 @@ if __name__ == '__main__':
     best_index_2 = np.argmax(-1 * hp_loss)
     print("Best hyperparameters based on loss are: ".format(hp_space[best_index_2]))
     print("Best hyperparameters based on accuracy are: ".format(hp_space[best_index]))
-    print("Best accuracy is: ".format( np.max(hp_accuracy)))
+    print("Best loss is: ".format( np.min(hp_loss)))
     result_dict = {}
     result_dict['hp_accuracy'] = hp_accuracy
     result_dict['hp_space'] = hp_space
@@ -231,7 +240,7 @@ if __name__ == '__main__':
                                      task_batch_size=task_batch_size)
             tf.reset_default_graph()
             model = SingleGraph(hidden_layers=h1,
-                                input_features_dim=2,
+                                input_features_dim=19,
                                 learning_rate=learning_rate,
                                 weight_decay=weight_decay)
             sess = tf.Session()
@@ -250,7 +259,7 @@ if __name__ == '__main__':
     best_index_2 = np.argmax(-1 * hp_loss_sg)
     print("Best hyperparameters based on loss are: {}".format(hp_space_sg[best_index_2]))
     print("Best hyperparameters based on accuracy are: {}".format(hp_space_sg[best_index]))
-    print("Best accuracy is: {}".format(np.max(hp_accuracy_sg)))
+    print("Best loss is: {}".format(np.min(hp_loss)))
 
     result_dict['hp_accuracy_sg'] = hp_accuracy_sg
     result_dict['hp_space_sg'] = hp_space_sg
