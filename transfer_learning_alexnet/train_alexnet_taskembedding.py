@@ -5,19 +5,13 @@ import numpy as np
 import tensorflow as tf
 
 from alexnet_taskembedding import AlexNetTaskEmbedding
-#from datagenerator import ImageDataGenerator
 from randomdatagenerator import ImageDataGenerator
 from testdatagenerator import TestDataGenerator
 from datetime import datetime
-from tensorflow.contrib.data import Iterator
 
 """
 Configuration Part.
 """
-
-# Path to the textfiles for the trainings and validation set
-train_file = 'training_data/train.txt'
-#val_file = 'validation_data/validate.txt'
 
 # Learning params
 learning_rate = 0.001
@@ -41,6 +35,8 @@ display_step = 20
 filewriter_path = "/tmp/finetune_alexnet/tensorboard"
 checkpoint_path = "/tmp/finetune_alexnet/checkpoints"
 
+data_dir = '../../Data/'
+
 """
 Main Part of the finetuning Script.
 """
@@ -57,20 +53,16 @@ y = tf.placeholder(tf.float32, [data_batch_size, num_classes], name='PH_y')
 keep_prob = tf.placeholder(tf.float32)
 
 # Data Generator for training
-data_generator_train = ImageDataGenerator('../../Data/train_PACS.txt', task_sequence, data_batch_size,
-                                          task_batch_size, no_of_tasks, num_classes, test_task=test_task)
+data_generator_train = ImageDataGenerator(data_dir + 'train_PACS.txt', task_sequence, data_batch_size,
+                                          task_batch_size, no_of_tasks, num_classes, data_dir, test_task=test_task)
 
 random_iterator_train = data_generator_train.data_iterator()
 
-# Data Generator for testing
-data_generator_test = TestDataGenerator('../../Data/train_PACS.txt', task_sequence, data_batch_size,
-                                         task_batch_size, no_of_tasks, num_classes, test_task=test_task)
 
-random_iterator_test = data_generator_test.data_iterator()
 
 # Initialize model
 model = AlexNetTaskEmbedding(data_x, task_x, keep_prob, num_classes, train_layers,
-                             weights_path='../../Data/bvlc_alexnet.npy')
+                             weights_path=data_dir + 'bvlc_alexnet.npy')
 
 # Link variable to model output
 score = model.fc8
@@ -127,6 +119,7 @@ test_task_size = task_sequence[test_task + 1] - task_sequence[test_task]
 batches_per_itr = int(test_task_size/data_batch_size)
 
 print('Test batches per itr: ', batches_per_itr)
+
 # Start Tensorflow session
 with tf.Session() as sess:
 
@@ -161,6 +154,13 @@ with tf.Session() as sess:
                                       keep_prob: dropout_rate})
 
         test_accuracy = 0
+        # Data Generator for testing
+        data_generator_test = TestDataGenerator(data_dir + 'train_PACS.txt', task_sequence, data_batch_size,
+                                                task_batch_size, no_of_tasks, num_classes, data_dir, test_task=test_task)
+
+        random_iterator_test = data_generator_test.data_iterator()
+
+        print('Testing with task: ', test_task)
         for itr in range(batches_per_itr):
 
             # get next batch of data
@@ -173,6 +173,6 @@ with tf.Session() as sess:
                                                 keep_prob: 1.})
             test_accuracy += acc
 
-        print('Accuracy: ', test_accuracy/itr)
+        print('Test Accuracy: ', test_accuracy/(itr+1))
 
 
