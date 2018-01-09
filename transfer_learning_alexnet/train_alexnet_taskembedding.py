@@ -35,7 +35,7 @@ display_step = 20
 filewriter_path = "/tmp/finetune_alexnet/tensorboard"
 checkpoint_path = "/tmp/finetune_alexnet/checkpoints"
 
-data_dir = '../../Data/'
+data_dir = ''
 
 """
 Main Part of the finetuning Script.
