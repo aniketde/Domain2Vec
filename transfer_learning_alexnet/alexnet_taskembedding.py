@@ -119,16 +119,16 @@ class AlexNetTaskEmbedding(object):
             fc6 = fc(flattened, 6*6*256, 4096, name='fc6')
             dropout6 = dropout(fc6, self.KEEP_PROB)
             self.data_batch_size = dropout6.get_shape().as_list()[0]
-
+            print('Data batch size: ', self.data_batch_size, 'Dropout6_task shape: ', dropout6_task.get_shape().as_list())
 
             fc_connect = fc(dropout6_task, self.task_batch_size, 1, name='fc_connect', transpose=True)
-            #print('Connect fc shape: ', fc_connect.get_shape().as_list())
+            print('Connect fc shape: ', fc_connect.get_shape().as_list())
 
             # Squeeze dropout layer from Task network and duplicate to match data batch size
             transformed_dropout6_task = tf.reshape(tf.tile(fc_connect, [1, self.data_batch_size]),
                                              [self.data_batch_size, -1])
 
-            #print('Tile shape: ', transformed_dropout6_task.get_shape().as_list())
+            print('Tile shape: ', transformed_dropout6_task.get_shape().as_list())
 
             dropout6_combined = tf.concat([dropout6, transformed_dropout6_task], 1)
 
@@ -188,7 +188,6 @@ class AlexNetTaskEmbedding(object):
                             # Weights
                             else:
                                 var = tf.get_variable('weights', trainable=False)
-                                print("Var: ", var)
                                 session.run(var.assign(data))
 
 

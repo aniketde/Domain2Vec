@@ -7,6 +7,7 @@ import tensorflow as tf
 from alexnet_taskembedding import AlexNetTaskEmbedding
 #from datagenerator import ImageDataGenerator
 from randomdatagenerator import ImageDataGenerator
+from testdatagenerator import TestDataGenerator
 from datetime import datetime
 from tensorflow.contrib.data import Iterator
 
@@ -24,8 +25,9 @@ num_epochs = 100
 data_batch_size = 128
 task_batch_size = 1024
 
-task_sequence = [0, 2344, 4392, 6062]
+task_sequence = [0, 2344, 4392, 6062, 9991]
 no_of_tasks = 4
+test_task = 3
 
 # Network params
 dropout_rate = 0.5
@@ -54,13 +56,21 @@ task_x = tf.placeholder(tf.float32, [task_batch_size, 227, 227, 3], name='PH_tas
 y = tf.placeholder(tf.float32, [data_batch_size, num_classes], name='PH_y')
 keep_prob = tf.placeholder(tf.float32)
 
-data_generator = ImageDataGenerator('../../Data/train_PACS.txt', task_sequence, data_batch_size,
-                                     task_batch_size, no_of_tasks, num_classes)
+# Data Generator for training
+data_generator_train = ImageDataGenerator('../../Data/train_PACS.txt', task_sequence, data_batch_size,
+                                          task_batch_size, no_of_tasks, num_classes, test_task=test_task)
 
-random_iterator = data_generator.data_iterator()
+random_iterator_train = data_generator_train.data_iterator()
+
+# Data Generator for testing
+data_generator_test = TestDataGenerator('../../Data/train_PACS.txt', task_sequence, data_batch_size,
+                                         task_batch_size, no_of_tasks, num_classes, test_task=test_task)
+
+random_iterator_test = data_generator_test.data_iterator()
 
 # Initialize model
-model = AlexNetTaskEmbedding(data_x, task_x, keep_prob, num_classes, train_layers)
+model = AlexNetTaskEmbedding(data_x, task_x, keep_prob, num_classes, train_layers,
+                             weights_path='../../Data/bvlc_alexnet.npy')
 
 # Link variable to model output
 score = model.fc8
@@ -113,6 +123,10 @@ writer = tf.summary.FileWriter(filewriter_path)
 # Initialize an saver for store model checkpoints
 saver = tf.train.Saver()
 
+test_task_size = task_sequence[test_task + 1] - task_sequence[test_task]
+batches_per_itr = int(test_task_size/data_batch_size)
+
+print('Test batches per itr: ', batches_per_itr)
 # Start Tensorflow session
 with tf.Session() as sess:
 
@@ -136,7 +150,7 @@ with tf.Session() as sess:
 
 
         # get next batch of data
-        task_batch, data_batch, label_batch = next(random_iterator)
+        task_batch, data_batch, label_batch = next(random_iterator_train)
         batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
 
 
@@ -146,11 +160,19 @@ with tf.Session() as sess:
                                       y: batch_one_hot,
                                       keep_prob: dropout_rate})
 
-        acc = sess.run(accuracy, feed_dict={data_x: data_batch,
-                                            task_x: task_batch,
-                                            y: batch_one_hot,
-                                            keep_prob: 1.})
+        test_accuracy = 0
+        for itr in range(batches_per_itr):
 
-        print('Accuracy: ', acc)
+            # get next batch of data
+            task_batch, data_batch, label_batch = next(random_iterator_test)
+            batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
+
+            acc = sess.run(accuracy, feed_dict={data_x: data_batch,
+                                                task_x: task_batch,
+                                                y: batch_one_hot,
+                                                keep_prob: 1.})
+            test_accuracy += acc
+
+        print('Accuracy: ', test_accuracy/itr)
 
 
