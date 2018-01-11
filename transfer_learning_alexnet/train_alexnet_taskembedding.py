@@ -15,13 +15,13 @@ Configuration Part.
 
 # Learning params
 learning_rate = 0.001
-num_epochs = 100
+num_epochs = 10000
 data_batch_size = 128
 task_batch_size = 1024
 
 task_sequence = [0, 2344, 4392, 6062, 9991]
 no_of_tasks = 4
-test_task = 3
+test_task = 0
 
 # Network params
 dropout_rate = 0.5
@@ -29,13 +29,14 @@ num_classes = 7
 train_layers = ['fc8', 'fc7', 'fc6']
 
 # How often we want to write the tf.summary data to disk
-display_step = 20
+display_step = 100
 
 # Path for tf.summary.FileWriter and to store model checkpoints
 filewriter_path = "/tmp/finetune_alexnet/tensorboard"
 checkpoint_path = "/tmp/finetune_alexnet/checkpoints"
 
 data_dir = ''
+log_file = 'PACS_test_task' + str(test_task) + '.txt'
 
 """
 Main Part of the finetuning Script.
@@ -120,6 +121,7 @@ batches_per_itr = int(test_task_size/data_batch_size)
 
 print('Test batches per itr: ', batches_per_itr)
 
+
 # Start Tensorflow session
 with tf.Session() as sess:
 
@@ -137,42 +139,49 @@ with tf.Session() as sess:
                                                       filewriter_path))
 
     # Loop over number of epochs
-    for epoch in range(num_epochs):
-
-        print("{} Epoch number: {}".format(datetime.now(), epoch+1))
-
-
-        # get next batch of data
-        task_batch, data_batch, label_batch = next(random_iterator_train)
-        batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
-
-
-        # And run the training op
-        sess.run(train_op, feed_dict={data_x: data_batch,
-                                      task_x: task_batch,
-                                      y: batch_one_hot,
-                                      keep_prob: dropout_rate})
-
-        test_accuracy = 0
+    with open(log_file, 'w+') as log_f:
         # Data Generator for testing
         data_generator_test = TestDataGenerator(data_dir + 'train_PACS.txt', task_sequence, data_batch_size,
-                                                task_batch_size, no_of_tasks, num_classes, data_dir, test_task=test_task)
+                                                task_batch_size, no_of_tasks, num_classes, data_dir,
+                                                test_task=test_task)
+        for epoch in range(num_epochs):
 
-        random_iterator_test = data_generator_test.data_iterator()
+            print("{} Epoch number: {}".format(datetime.now(), epoch+1))
 
-        print('Testing with task: ', test_task)
-        for itr in range(batches_per_itr):
 
             # get next batch of data
-            task_batch, data_batch, label_batch = next(random_iterator_test)
+            task_batch, data_batch, label_batch = next(random_iterator_train)
             batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
 
-            acc = sess.run(accuracy, feed_dict={data_x: data_batch,
-                                                task_x: task_batch,
-                                                y: batch_one_hot,
-                                                keep_prob: 1.})
-            test_accuracy += acc
 
-        print('Test Accuracy: ', test_accuracy/(itr+1))
+            # And run the training op
+            sess.run(train_op, feed_dict={data_x: data_batch,
+                                          task_x: task_batch,
+                                          y: batch_one_hot,
+                                          keep_prob: dropout_rate})
+
+            test_accuracy = 0
+
+
+            random_iterator_test = data_generator_test.data_iterator()
+
+            if epoch % display_step == 0:
+                print('Testing with task: ', test_task)
+                for itr in range(batches_per_itr):
+
+                    # get next batch of data
+                    task_batch, data_batch, label_batch = next(random_iterator_test)
+                    batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
+
+                    acc = sess.run(accuracy, feed_dict={data_x: data_batch,
+                                                        task_x: task_batch,
+                                                        y: batch_one_hot,
+                                                        keep_prob: 1.})
+                    test_accuracy += acc
+
+
+                log_f.write('Iteration: {} Accuracy: {}\n'.format(epoch, test_accuracy/(itr+1)))
+
+                print('Test Accuracy: ', test_accuracy/(itr+1))
 
 
