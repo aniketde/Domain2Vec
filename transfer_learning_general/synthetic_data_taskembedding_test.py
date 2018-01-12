@@ -74,13 +74,13 @@ def TrainDataIterator(features, labels, data_batch_size, task_batch_size, train_
 
 if __name__ == '__main__':
     # Creating the synthetic task embedding samples
-    tasks = 100
+    total_tasks = 100
     examples_per_task = 1024
-    traintask_perc = 0.8
+    training_frac = 0.8
     data_batch_size = 128
     task_batch_size = 768
-    total_size = tasks * examples_per_task
-    training_tasks = int(tasks * traintask_perc)
+    total_size = total_tasks * examples_per_task
+    training_tasks = int(total_tasks * training_frac)
     epochs = 10000
 
     temp = np.load('./examples/synthetic_data.npz')
@@ -88,10 +88,11 @@ if __name__ == '__main__':
 
     task_sequence = np.arange(0, total_size, examples_per_task)
 
-    task_indices = np.arange(0, tasks)
+    task_indices = np.arange(0, total_tasks)
     random.shuffle(task_indices)
-    train_sequence = task_sequence[task_indices[:80]]
-    test_sequence = task_sequence[task_indices[80:]]
+    no_training_tasks = int(total_tasks * training_frac)
+    train_sequence = task_sequence[task_indices[:no_training_tasks]]
+    test_sequence = task_sequence[task_indices[no_training_tasks:]]
 
     ################################### Task embedding network #########################################################
     # Range of the hyperparameters
@@ -135,8 +136,9 @@ if __name__ == '__main__':
         data_iter_test = TestDataIterator(x_all_tasks, y_all_tasks,
                                           data_batch_size=data_batch_size, task_batch_size=task_batch_size,
                                           test_sequence=test_sequence, examples_per_task=examples_per_task)
-
-        dev_pred, dev_loss, dev_accuracy = model.predictions(sess, data_iter_test, test_tasks=20,
+        print('Testing tasks: ', int(total_tasks * (1 - training_frac)))
+        dev_pred, dev_loss, dev_accuracy = model.predictions(sess, data_iter_test,
+                                                             test_tasks=(total_tasks - no_training_tasks),
                                                              examples_per_task=examples_per_task,
                                                              data_batch_size=data_batch_size)
 
