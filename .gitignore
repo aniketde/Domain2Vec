@@ -1,4 +1,5 @@
 *.idea
 parkinson_disease/graphs/
 parkinson_disease/checkpoints/
-__pycache__/
+__pycache__
+*.ipnyb
