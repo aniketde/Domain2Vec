@@ -81,18 +81,10 @@ if __name__ == '__main__':
     task_batch_size = 768
     total_size = total_tasks * examples_per_task
     training_tasks = int(total_tasks * training_frac)
-    epochs = 10000
+    epochs = 1000
 
     temp = np.load('./examples/synthetic_data.npz')
     x_all_tasks, y_all_tasks, angle, moment_vectors = temp['x'], temp['y'], temp['angle'], temp['moment']
-
-    task_sequence = np.arange(0, total_size, examples_per_task)
-
-    task_indices = np.arange(0, total_tasks)
-    random.shuffle(task_indices)
-    no_training_tasks = int(total_tasks * training_frac)
-    train_sequence = task_sequence[task_indices[:no_training_tasks]]
-    test_sequence = task_sequence[task_indices[no_training_tasks:]]
 
     ################################### Task embedding network #########################################################
     # Range of the hyperparameters
@@ -101,12 +93,13 @@ if __name__ == '__main__':
     n1_space = np.power(2, [2], dtype=np.int32)
     h1_space = np.power(2, [2], dtype=np.int32)
     weight_decay_space = np.logspace(-6, -6, 1)
-    n_experiments = 1
+    n_experiments = 10
 
     # Hyperparameter selection
     hp_space = np.zeros((n_experiments, 5))
     hp_loss = np.zeros((n_experiments,))
     hp_accuracy = np.zeros((n_experiments,))
+
     for experiment in range(n_experiments):
         # Setting up the experiment space - hyperparameter values
         learning_rate = np.random.choice(learning_rate_space)
@@ -115,6 +108,14 @@ if __name__ == '__main__':
         h1 = np.random.choice(h1_space)
         weight_decay = np.random.choice(weight_decay_space)
         hp_space[experiment] = [learning_rate, d, n1, h1, weight_decay]
+
+        task_sequence = np.arange(0, total_size, examples_per_task)
+
+        task_indices = np.arange(0, total_tasks)
+        random.shuffle(task_indices)
+        no_training_tasks = int(total_tasks * training_frac)
+        train_sequence = task_sequence[task_indices[:no_training_tasks]]
+        test_sequence = task_sequence[task_indices[no_training_tasks:]]
 
         # TRAIN Iterator
         data_iter = TrainDataIterator(x_all_tasks, y_all_tasks,
@@ -142,4 +143,7 @@ if __name__ == '__main__':
                                                              examples_per_task=examples_per_task,
                                                              data_batch_size=data_batch_size)
 
-    print("Average accuracy for all tasks {}".format(dev_accuracy))
+        print("Average accuracy for all tasks {}".format(dev_accuracy))
+        hp_accuracy[experiment] = dev_accuracy
+
+    print('Final average accuracy after {} runs: {}'.format(n_experiments, np.mean(hp_accuracy)))
