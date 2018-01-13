@@ -81,7 +81,7 @@ if __name__ == '__main__':
     task_batch_size = 768
     total_size = total_tasks * examples_per_task
     training_tasks = int(total_tasks * training_frac)
-    epochs = 1000
+    epochs = 10000
 
     temp = np.load('./examples/synthetic_data.npz')
     x_all_tasks, y_all_tasks, angle, moment_vectors = temp['x'], temp['y'], temp['angle'], temp['moment']
@@ -100,50 +100,53 @@ if __name__ == '__main__':
     hp_loss = np.zeros((n_experiments,))
     hp_accuracy = np.zeros((n_experiments,))
 
-    for experiment in range(n_experiments):
-        # Setting up the experiment space - hyperparameter values
-        learning_rate = np.random.choice(learning_rate_space)
-        d = np.random.choice(d_space)
-        n1 = np.random.choice(n1_space)
-        h1 = np.random.choice(h1_space)
-        weight_decay = np.random.choice(weight_decay_space)
-        hp_space[experiment] = [learning_rate, d, n1, h1, weight_decay]
+    with open('synthetic_results_10k_epochs.txt','w+') as file:
+        for experiment in range(n_experiments):
+            # Setting up the experiment space - hyperparameter values
+            learning_rate = np.random.choice(learning_rate_space)
+            d = np.random.choice(d_space)
+            n1 = np.random.choice(n1_space)
+            h1 = np.random.choice(h1_space)
+            weight_decay = np.random.choice(weight_decay_space)
+            hp_space[experiment] = [learning_rate, d, n1, h1, weight_decay]
 
-        task_sequence = np.arange(0, total_size, examples_per_task)
+            task_sequence = np.arange(0, total_size, examples_per_task)
 
-        task_indices = np.arange(0, total_tasks)
-        random.shuffle(task_indices)
-        no_training_tasks = int(total_tasks * training_frac)
-        train_sequence = task_sequence[task_indices[:no_training_tasks]]
-        test_sequence = task_sequence[task_indices[no_training_tasks:]]
+            task_indices = np.arange(0, total_tasks)
+            random.shuffle(task_indices)
+            no_training_tasks = int(total_tasks * training_frac)
+            train_sequence = task_sequence[task_indices[:no_training_tasks]]
+            test_sequence = task_sequence[task_indices[no_training_tasks:]]
 
-        # TRAIN Iterator
-        data_iter = TrainDataIterator(x_all_tasks, y_all_tasks,
-                                      data_batch_size=data_batch_size, task_batch_size=task_batch_size,
-                                      train_sequence=train_sequence, examples_per_task=examples_per_task)
-        tf.reset_default_graph()
-        model = TaskEmbeddingNetworkNaive(input_features_dim=2,
-                                          task_emb_shape=d,
-                                          input_hid_layer_shape=h1,
-                                          task_emb_hid_shape=n1,
-                                          weight_decay=weight_decay,
-                                          task_batch_size=task_batch_size,
-                                          data_batch_size=data_batch_size,
-                                          learning_rate=learning_rate)
-        sess = tf.Session()
-        model._train(sess, iterator=data_iter, epochs=epochs)
-
-        # TEST Iterator
-        data_iter_test = TestDataIterator(x_all_tasks, y_all_tasks,
+            # TRAIN Iterator
+            data_iter = TrainDataIterator(x_all_tasks, y_all_tasks,
                                           data_batch_size=data_batch_size, task_batch_size=task_batch_size,
-                                          test_sequence=test_sequence, examples_per_task=examples_per_task)
-        print('Testing tasks: ', int(total_tasks * (1 - training_frac)))
-        dev_pred, dev_loss, dev_accuracy = model.predictions(sess, data_iter_test,
-                                                             test_tasks=(total_tasks - no_training_tasks),
-                                                             examples_per_task=examples_per_task,
-                                                             data_batch_size=data_batch_size)
+                                          train_sequence=train_sequence, examples_per_task=examples_per_task)
+            tf.reset_default_graph()
+            model = TaskEmbeddingNetworkNaive(input_features_dim=2,
+                                              task_emb_shape=d,
+                                              input_hid_layer_shape=h1,
+                                              task_emb_hid_shape=n1,
+                                              weight_decay=weight_decay,
+                                              task_batch_size=task_batch_size,
+                                              data_batch_size=data_batch_size,
+                                              learning_rate=learning_rate)
+            sess = tf.Session()
+            model._train(sess, iterator=data_iter, epochs=epochs, experiment=experiment)
 
-        print("Average accuracy for all tasks {}".format(dev_accuracy))
-        hp_accuracy[experiment] = dev_accuracy
 
-    print('Final average accuracy after {} runs: {}'.format(n_experiments, np.mean(hp_accuracy)))
+            # TEST Iterator
+            data_iter_test = TestDataIterator(x_all_tasks, y_all_tasks,
+                                              data_batch_size=data_batch_size, task_batch_size=task_batch_size,
+                                              test_sequence=test_sequence, examples_per_task=examples_per_task)
+            print('Testing tasks: ', int(total_tasks * (1 - training_frac)))
+            dev_pred, dev_loss, dev_accuracy = model.predictions(sess, data_iter_test,
+                                                                 test_tasks=(total_tasks - no_training_tasks),
+                                                                 examples_per_task=examples_per_task,
+                                                                 data_batch_size=data_batch_size)
+
+            print("Average accuracy for all tasks {}".format(dev_accuracy))
+            hp_accuracy[experiment] = dev_accuracy
+            file.writelines('Iteration: ' + str(experiment) + 'Accuracy: ' + str(dev_accuracy) + '\n')
+
+        print('Final average accuracy after {} runs: {}'.format(n_experiments, np.mean(hp_accuracy)))

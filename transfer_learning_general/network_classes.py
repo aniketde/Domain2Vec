@@ -38,7 +38,7 @@ class TaskEmbeddingNetworkNaive:
             self.fc_fnl = fc_layer_naive(self.inp_fc1, 2, name='fc_fnl', non_linear_fn=None)
         self.pred = tf.argmax(tf.nn.softmax(self.fc_fnl), 1)
 
-    def _train(self, sess, iterator, epochs, ckpt_check=False):
+    def _train(self, sess, iterator, epochs, experiment, ckpt_check=False):
         # Getting the basic variables required to run loops for the desired number of epochs
         task_data, batch_data, y = next(iterator)
 
@@ -63,6 +63,11 @@ class TaskEmbeddingNetworkNaive:
                 task_data, batch_data, y = next(iterator)
 
                 print("Epoch {} : Training Loss = {}, Accuracy: {}".format(step, total_loss, accuracy))
+
+                task_embedding = sess.run(self.task_embedding, feed_dict={self.task_batch: task_data,
+                                                                          self.input_batch: batch_data,
+                                                                          self.output: y})
+            np.save('task_embedding_' + str(experiment) + '_.npy', task_embedding)
 
     def predictions(self, sess, test_iterator, test_tasks, examples_per_task, data_batch_size):
         """
