@@ -26,7 +26,7 @@ test_task = 0
 # Network params
 dropout_rate = 0.5
 num_classes = 7
-train_layers = ['fc8', 'fc7', 'fc6']
+train_layers = ['fc8', 'fc7', 'fc6', 'fc_connect']
 
 # How often we want to write the tf.summary data to disk
 display_step = 100
@@ -35,7 +35,7 @@ display_step = 100
 filewriter_path = "/tmp/finetune_alexnet/tensorboard"
 checkpoint_path = "/tmp/finetune_alexnet/checkpoints"
 
-data_dir = ''
+data_dir = '../../Data/'
 log_file = 'PACS_test_task' + str(test_task) + '.txt'
 
 """
@@ -168,7 +168,6 @@ with tf.Session() as sess:
             if epoch % display_step == 0:
                 print('Testing with task: ', test_task)
                 for itr in range(batches_per_itr):
-
                     # get next batch of data
                     task_batch, data_batch, label_batch = next(random_iterator_test)
                     batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))

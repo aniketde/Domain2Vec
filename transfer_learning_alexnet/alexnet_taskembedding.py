@@ -125,8 +125,7 @@ class AlexNetTaskEmbedding(object):
             print('Connect fc shape: ', fc_connect.get_shape().as_list())
 
             # Squeeze dropout layer from Task network and duplicate to match data batch size
-            transformed_dropout6_task = tf.reshape(tf.tile(fc_connect, [1, self.data_batch_size]),
-                                             [self.data_batch_size, -1])
+            transformed_dropout6_task = tf.tile(fc_connect, [self.data_batch_size, 1])
 
             print('Tile shape: ', transformed_dropout6_task.get_shape().as_list())
 
