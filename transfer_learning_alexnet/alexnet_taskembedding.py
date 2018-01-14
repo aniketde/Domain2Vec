@@ -28,8 +28,8 @@ import numpy as np
 class AlexNetTaskEmbedding(object):
     """Implementation of the AlexNet."""
 
-    def __init__(self, data_x, task_x, keep_prob, num_classes, skip_layer,
-                 weights_path='DEFAULT'):
+    def __init__(self, data_x, task_x, keep_prob, num_classes,
+                 skip_layer, weights_path='DEFAULT'):
         """Create the graph of the AlexNet model.
 
         Args:
@@ -58,7 +58,6 @@ class AlexNetTaskEmbedding(object):
 
     def createTaskNetwork(self):
         """Create the Task network graph."""
-
         with tf.variable_scope("task"):
             # 1st Layer: Conv (w ReLu) -> Pool -> Lrn
             conv1 = conv(self.task_X, 11, 11, 96, 4, 4, padding='VALID', name='conv1')
@@ -85,14 +84,12 @@ class AlexNetTaskEmbedding(object):
             fc6 = fc(flattened, 6*6*256, 4096, name='fc6')
             self.dropout6 = dropout(fc6, self.KEEP_PROB)
             self.task_batch_size = self.dropout6.get_shape().as_list()[0]
-
         return self.dropout6
 
     def createMainNetwork(self):
         """Create the Main network graph."""
 
         dropout6_task = self.createTaskNetwork()
-
         with tf.variable_scope("main"):
             # 1st Layer: Conv (w ReLu) -> Pool -> Lrn
             conv1 = conv(self.data_X, 11, 11, 96, 4, 4, padding='VALID', name='conv1')
@@ -118,18 +115,13 @@ class AlexNetTaskEmbedding(object):
             flattened = tf.reshape(pool5, [-1, 6*6*256])
             fc6 = fc(flattened, 6*6*256, 4096, name='fc6')
             dropout6 = dropout(fc6, self.KEEP_PROB)
-            self.data_batch_size = dropout6.get_shape().as_list()[0]
-            print('Data batch size: ', self.data_batch_size, 'Dropout6_task shape: ', dropout6_task.get_shape().as_list())
 
-            fc_connect = fc(dropout6_task, self.task_batch_size, 1, name='fc_connect', transpose=True)
-            print('Connect fc shape: ', fc_connect.get_shape().as_list())
+            self.data_batch_size = dropout6.get_shape().as_list()[0]
+            fc_connect = fc(dropout6_task, self.task_batch_size, 1, name='fc_connect',
+                            transpose=True)
 
             # Squeeze dropout layer from Task network and duplicate to match data batch size
-            transformed_dropout6_task = tf.reshape(tf.tile(fc_connect, [1, self.data_batch_size]),
-                                             [self.data_batch_size, -1])
-
-            print('Tile shape: ', transformed_dropout6_task.get_shape().as_list())
-
+            transformed_dropout6_task = tf.tile(fc_connect, [self.data_batch_size, 1])
             dropout6_combined = tf.concat([dropout6, transformed_dropout6_task], 1)
 
             # 7th Layer: FC (w ReLu) -> Dropout
@@ -153,22 +145,16 @@ class AlexNetTaskEmbedding(object):
 
         # Loop over all layer names stored in the weights dict
         for op_name in weights_dict:
-
             # Check if layer should be trained from scratch
             if op_name not in self.SKIP_LAYER:
-
                 with tf.variable_scope("main", reuse=True):
-
                     with tf.variable_scope(op_name, reuse=True):
-
                         # Assign weights/biases to their corresponding tf variable
                         for data in weights_dict[op_name]:
-
                             # Biases
                             if len(data.shape) == 1:
                                 var = tf.get_variable('biases', trainable=False)
                                 session.run(var.assign(data))
-
                             # Weights
                             else:
                                 var = tf.get_variable('weights', trainable=False)
@@ -176,15 +162,12 @@ class AlexNetTaskEmbedding(object):
 
                 with tf.variable_scope("task", reuse=True):
                     with tf.variable_scope(op_name, reuse=True):
-
                         # Assign weights/biases to their corresponding tf variable
                         for data in weights_dict[op_name]:
-
                             # Biases
                             if len(data.shape) == 1:
                                 var = tf.get_variable('biases', trainable=False)
                                 session.run(var.assign(data))
-
                             # Weights
                             else:
                                 var = tf.get_variable('weights', trainable=False)
@@ -241,27 +224,19 @@ def fc(x, num_in, num_out, name, relu=True, transpose=False):
         x = tf.transpose(x)
     """Create a fully connected layer."""
     with tf.variable_scope(name) as scope:
-
         # Create tf variables for the weights and biases
         weights = tf.get_variable('weights', shape=[num_in, num_out],
                                   trainable=True)
         biases = tf.get_variable('biases', [num_out], trainable=True)
-
         # Matrix multiply weights and inputs and add bias
         act = tf.nn.xw_plus_b(x, weights, biases, name=scope.name)
 
-
-
     if relu:
         # Apply ReLu non linearity
-        relu = tf.nn.relu(act)
-        if transpose:
-            relu = tf.transpose(relu)
-        return relu
-    else:
-        if transpose:
-            act = tf.transpose(act)
-        return act
+        act = tf.nn.relu(act)
+    if transpose:
+        act = tf.transpose(act)
+    return act
 
 
 def max_pool(x, filter_height, filter_width, stride_y, stride_x, name,

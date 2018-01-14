@@ -3,3 +3,4 @@ parkinson_disease/graphs/
 parkinson_disease/checkpoints/
 __pycache__
 *.ipnyb
+workspace/
