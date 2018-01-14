@@ -24,6 +24,7 @@ no_of_tasks = 4
 test_task = 2
 num_classes = 7
 train_layers = ['fc8', 'fc7', 'fc6', 'fc_connect']
+skip_layers = ['fc7', 'fc8']
 
 # Network params
 dropout_rate = 0.3
@@ -68,7 +69,7 @@ random_iterator_train = data_generator.trainIterator()
 
 # Initialize model
 model = AlexNetTaskEmbedding(data_x, task_x, keep_prob, num_classes,
-                             train_layers,
+                             skip_layers,
                              weights_path=data_dir + 'bvlc_alexnet.npy')
 
 # Link variable to model output

@@ -153,11 +153,11 @@ class AlexNetTaskEmbedding(object):
                         for data in weights_dict[op_name]:
                             # Biases
                             if len(data.shape) == 1:
-                                var = tf.get_variable('biases', trainable=False)
+                                var = tf.get_variable('biases')
                                 session.run(var.assign(data))
                             # Weights
                             else:
-                                var = tf.get_variable('weights', trainable=False)
+                                var = tf.get_variable('weights')
                                 session.run(var.assign(data))
 
                 with tf.variable_scope("task", reuse=True):
@@ -166,11 +166,11 @@ class AlexNetTaskEmbedding(object):
                         for data in weights_dict[op_name]:
                             # Biases
                             if len(data.shape) == 1:
-                                var = tf.get_variable('biases', trainable=False)
+                                var = tf.get_variable('biases')
                                 session.run(var.assign(data))
                             # Weights
                             else:
-                                var = tf.get_variable('weights', trainable=False)
+                                var = tf.get_variable('weights')
                                 session.run(var.assign(data))
 
 
