@@ -107,7 +107,7 @@ for gradient, var in gradients:
 for var in var_list:
     tf.summary.histogram(var.name, var)
 # Add the loss to summary
-tf.summary.scalar('cross_entropy', loss)
+tf.summary.scalar('cross_entropy', cnt_loss)
 
 # Evaluation op: Accuracy of the model
 with tf.name_scope("accuracy"):
@@ -149,11 +149,12 @@ with tf.Session() as sess:
         batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
 
         # And run the training op
-        sess.run(train_op, feed_dict={data_x: data_batch,
+        _, summ = sess.run([train_op, merged_summary], feed_dict={data_x: data_batch,
                                       task_x: task_batch,
                                       y: batch_one_hot,
                                       keep_prob: keep_prob_rate})
 
+        writer.add_summary(summ, epoch)
         correct_predictions, n_predictions = 0, 0
         random_iterator_test = data_generator.TestIterator()
         if epoch%100 == 0:
