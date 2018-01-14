@@ -13,11 +13,11 @@ Configuration Part.
 """
 
 # Learning params
-learning_rate = 0.0001
+learning_rate = 0.001
 num_epochs = 10000
 data_batch_size = 256
 task_batch_size = 1670
-weight_decay = 0.005
+weight_decay = 0.0005
 
 task_sequence = [0, 2344, 4392, 6062, 9991]
 no_of_tasks = 4
@@ -30,11 +30,11 @@ dropout_rate = 0.3
 keep_prob_rate = 1 - dropout_rate
 
 # How often we want to write the tf.summary data to disk
-display_step = 1000
+display_step = 100
 
 # Path for tf.summary.FileWriter and to store model checkpoints
-filewriter_path = "/tmp/finetune_alexnet/tensorboard"
-checkpoint_path = "/tmp/finetune_alexnet/checkpoints"
+filewriter_path = "../checkpoints"
+checkpoint_path = "../checkpoints"
 
 data_dir = '../workspace/PACS/'
 log_dir = 'training_logs'
@@ -95,7 +95,7 @@ with tf.name_scope("train"):
     gradients = list(zip(gradients, var_list))
 
     # Create optimizer and apply gradient descent to the trainable variables
-    optimizer = tf.train.AdamOptimizer(learning_rate)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
     train_op = optimizer.apply_gradients(grads_and_vars=gradients)
 
 # Add gradients to summary
@@ -150,7 +150,7 @@ with tf.Session() as sess:
         sess.run(train_op, feed_dict={data_x: data_batch,
                                       task_x: task_batch,
                                       y: batch_one_hot,
-                                      keep_prob: dropout_rate})
+                                      keep_prob: keep_prob_rate})
 
         correct_predictions, n_predictions = 0, 0
         random_iterator_test = data_generator.TestIterator()
