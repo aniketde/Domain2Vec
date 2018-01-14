@@ -151,18 +151,19 @@ with tf.Session() as sess:
         if epoch % display_step == 0:
             print('Testing with task: ', test_task)
             for itr in range(batches_per_itr):
+                print(itr)
                 # get next batch of data
                 task_batch, data_batch, label_batch, flag = next(random_iterator_test)
                 batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
-                if iter == batches_per_itr-1:
+                if itr == batches_per_itr-1:
                     pass
                 temp = sess.run(correct_pred_tensor, feed_dict={data_x: data_batch,
                                                     task_x: task_batch,
                                                     y: batch_one_hot,
                                                     keep_prob: 1.})
                 correct_predictions += np.sum(temp * flag)
-                n_predictions += temp.shape[0]
-            accuracy = correct_predictions / n_predictions
+                n_predictions += np.sum(flag)
+            accuracy = (1.0 * correct_predictions) / n_predictions
             log_f.write('Iteration: {} Accuracy: {}\n'.format(epoch, accuracy))
             print('Test Accuracy: ', accuracy)
 

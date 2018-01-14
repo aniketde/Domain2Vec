@@ -58,9 +58,9 @@ class ImageDataGenerator(object):
                 data_batch_features = np.zeros(features_shape)
                 batch_labels = np.zeros(labels_shape)
                 include_flag = np.zeros((self.data_batch_size))
-                data_batch_features[data_batch_start: end] = self.X[data_batch_start:end]
-                batch_labels[data_batch_start: end] = self.Y[data_batch_start:end]
-                include_flag[data_batch_start: end] = 1
+                data_batch_features[:(end-data_batch_start)] = self.X[data_batch_start:end]
+                batch_labels[:(end-data_batch_start)] = self.Y[data_batch_start:end]
+                include_flag[:(end-data_batch_start)] = 1
             # Shuffle task specific indices and collect task batch
             np.random.shuffle(perm)
             task_batch_features = self.X[perm[:self.task_batch_size]]
