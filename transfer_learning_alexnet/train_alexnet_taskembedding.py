@@ -13,7 +13,7 @@ Configuration Part.
 """
 
 # Learning params
-learning_rate = 0.001
+learning_rate = 0.0001
 num_epochs = 10000
 data_batch_size = 128
 task_batch_size = 1670
@@ -27,7 +27,7 @@ train_layers = ['fc8', 'fc7', 'fc6', 'fc_connect']
 skip_layers = ['fc7', 'fc8']
 
 # Network params
-dropout_rate = 0.3
+dropout_rate = 0.5
 keep_prob_rate = 1 - dropout_rate
 
 # How often we want to write the tf.summary data to disk
@@ -97,7 +97,7 @@ with tf.name_scope("train"):
     gradients = list(zip(gradients, var_list))
 
     # Create optimizer and apply gradient descent to the trainable variables
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    optimizer = tf.train.AdamOptimizer(learning_rate)
     train_op = optimizer.apply_gradients(grads_and_vars=gradients)
 
 # Add gradients to summary
