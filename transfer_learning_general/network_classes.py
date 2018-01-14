@@ -7,9 +7,10 @@ class TaskEmbeddingNetworkNaive:
     """
     This is the graph for single task training
     """
-    def __init__(self, task_emb_shape, input_hid_layer_shape, task_emb_hid_shape, weight_decay=0.005,
-                 learning_rate=0.01, task_batch_size=1024, data_batch_size=256,
-                 input_features_dim=2):
+    def __init__(self, task_emb_shape, input_hid_layer_shape,
+                 task_emb_hid_shape, weight_decay=0.005,
+                 learning_rate=0.01, task_batch_size=1024,
+                 data_batch_size=256, input_features_dim=2):
         self._task_emb_shape = task_emb_shape
         self._input_hid_layer_shape = input_hid_layer_shape
         self._task_emb_hid_shape = task_emb_hid_shape
