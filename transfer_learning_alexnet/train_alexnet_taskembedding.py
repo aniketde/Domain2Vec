@@ -21,15 +21,15 @@ task_batch_size = 1024
 
 task_sequence = [0, 2344, 4392, 6062, 9991]
 no_of_tasks = 4
-test_task = 0
+test_task = 2
 
 # Network params
-dropout_rate = 0.5
+dropout_rate = 0.3
 num_classes = 7
 train_layers = ['fc8', 'fc7', 'fc6', 'fc_connect']
 
 # How often we want to write the tf.summary data to disk
-display_step = 100
+display_step = 1000
 
 # Path for tf.summary.FileWriter and to store model checkpoints
 filewriter_path = "/tmp/finetune_alexnet/tensorboard"
