@@ -9,7 +9,8 @@ import pickle
 import random
 
 
-def TestDataIterator(features, labels, data_batch_size, task_batch_size, test_sequence, examples_per_task):
+def TestDataIterator(features, labels, data_batch_size, task_batch_size,
+                     test_sequence, examples_per_task):
     """
     Creates an iterator which outputs the placeholders for the neural network
     :param features: The features for the different tasks
@@ -42,7 +43,8 @@ def TestDataIterator(features, labels, data_batch_size, task_batch_size, test_se
         yield task_batch_features, data_batch_features, batch_labels
 
 
-def TrainDataIterator(features, labels, data_batch_size, task_batch_size, train_sequence, examples_per_task):
+def TrainDataIterator(features, labels, data_batch_size, task_batch_size,
+                      train_sequence, examples_per_task):
     """
     Creates an iterator which outputs the placeholders for the neural network
     :param features: The features for the different tasks
@@ -51,9 +53,7 @@ def TrainDataIterator(features, labels, data_batch_size, task_batch_size, train_
     :param task_batch_size: Batch size for the embedding network
     :param task_sequence: A list containing start indices of tasks
     """
-
     no_of_tasks = train_sequence.shape[0]
-
     while True:
         # Randomly pick task
         task_itr = randint(0, no_of_tasks - 1)
