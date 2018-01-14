@@ -1,10 +1,9 @@
 import tensorflow as tf
 import numpy as np
-from random import randint
 import random
 import cv2
 
-VGG_MEAN = tf.constant([123.68, 116.779, 103.939], dtype=tf.float32)
+IMAGENET_MEAN = np.array([103.939, 116.779, 123.68], dtype=np.float32)
 
 
 class ImageDataGenerator(object):
@@ -73,7 +72,8 @@ class ImageDataGenerator(object):
         Y = []
         with open(self.txt_file, 'r') as t:
             for line in t.readlines():
-                img = cv2.imread(self.dataset_dir + line.split(' ')[0])
+                img = (cv2.imread(self.dataset_dir + line.split(' ')[0])).astype(np.float32)
+                img -= IMAGENET_MEAN
                 X.append(img)
                 y = line.split(' ')[1]
                 Y.append(int(y))
