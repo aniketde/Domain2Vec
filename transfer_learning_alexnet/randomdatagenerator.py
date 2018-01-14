@@ -26,7 +26,6 @@ class ImageDataGenerator(object):
             allowed_values = list(range(0, self.no_of_tasks))
             allowed_values.remove(self.test_task)
             task_itr = random.choice(allowed_values)
-            print('Selected task for training: ', task_itr)
             end = self.task_sequence[task_itr + 1]
             # Define task specific index bounds
             perm = np.arange(self.task_sequence[task_itr], end)

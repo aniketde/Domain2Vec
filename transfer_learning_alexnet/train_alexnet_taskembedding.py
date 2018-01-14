@@ -13,20 +13,21 @@ Configuration Part.
 """
 
 # Learning params
-learning_rate = 0.001
+learning_rate = 0.0001
 num_epochs = 10000
-data_batch_size = 128
-task_batch_size = 1024
+data_batch_size = 256
+task_batch_size = 1670
+weight_decay = 0.005
 
 task_sequence = [0, 2344, 4392, 6062, 9991]
 no_of_tasks = 4
 test_task = 2
+num_classes = 7
+train_layers = ['fc8', 'fc7', 'fc6', 'fc_connect']
 
 # Network params
 dropout_rate = 0.3
 keep_prob_rate = 1 - dropout_rate
-num_classes = 7
-train_layers = ['fc8', 'fc7', 'fc6', 'fc_connect']
 
 # How often we want to write the tf.summary data to disk
 display_step = 1000
@@ -78,8 +79,14 @@ var_list = [v for v in tf.trainable_variables() if v.name.split('/')[1] in train
 
 # Op for calculating the loss
 with tf.name_scope("cross_ent"):
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=score,
+    cnt_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=score,
                                                                   labels=y))
+    loss = cnt_loss
+
+if weight_decay > 0:
+    weight_norm = tf.reduce_sum(weight_decay * tf.stack(
+        [tf.nn.l2_loss(i) for i in var_list if 'weights' in i.name]), name='weight_norm')
+    loss = tf.add(cnt_loss, weight_norm)
 
 # Train op
 with tf.name_scope("train"):
@@ -135,7 +142,6 @@ with tf.Session() as sess:
     log_f = open(log_file, 'w+')
     # Data Generator for testing
     for epoch in range(num_epochs):
-        print("{} Epoch number: {}".format(datetime.now(), epoch+1))
         # get next batch of data
         task_batch, data_batch, label_batch = next(random_iterator_train)
         batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
@@ -148,10 +154,11 @@ with tf.Session() as sess:
 
         correct_predictions, n_predictions = 0, 0
         random_iterator_test = data_generator.TestIterator()
+        if epoch%100 == 0:
+            print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         if epoch % display_step == 0:
             print('Testing with task: ', test_task)
             for itr in range(batches_per_itr):
-                print(itr)
                 # get next batch of data
                 task_batch, data_batch, label_batch, flag = next(random_iterator_test)
                 batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
