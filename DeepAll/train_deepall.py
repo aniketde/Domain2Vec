@@ -34,7 +34,7 @@ display_step = 1000
 filewriter_path = "/tmp/finetune_alexnet/tensorboard"
 checkpoint_path = "/tmp/finetune_alexnet/checkpoints"
 
-data_dir = '../../Data/'
+data_dir = ''
 log_file = 'PACS_test_task' + str(test_task) + '.txt'
 
 """
