@@ -15,7 +15,7 @@ Configuration Part.
 # Learning params
 learning_rate = 0.001
 num_epochs = 10000
-data_batch_size = 256
+data_batch_size = 128
 task_batch_size = 1670
 weight_decay = 0.0005
 
@@ -86,6 +86,7 @@ with tf.name_scope("cross_ent"):
 if weight_decay > 0:
     weight_norm = tf.reduce_sum(weight_decay * tf.stack(
         [tf.nn.l2_loss(i) for i in var_list if 'weights' in i.name]), name='weight_norm')
+    weight_norm = weight_norm / task_batch_size
     loss = tf.add(cnt_loss, weight_norm)
 
 # Train op

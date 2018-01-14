@@ -24,7 +24,7 @@ folder as this file:
 import tensorflow as tf
 import numpy as np
 
-
+layers = tf.contrib.layers
 class AlexNetTaskEmbedding(object):
     """Implementation of the AlexNet."""
 
@@ -226,8 +226,10 @@ def fc(x, num_in, num_out, name, relu=True, transpose=False):
     with tf.variable_scope(name) as scope:
         # Create tf variables for the weights and biases
         weights = tf.get_variable('weights', shape=[num_in, num_out],
+                                  initializer=layers.xavier_initializer(),
                                   trainable=True)
-        biases = tf.get_variable('biases', [num_out], trainable=True)
+        biases = tf.get_variable('biases', [num_out], trainable=True,
+                                 initializer=tf.constant_initializer())
         # Matrix multiply weights and inputs and add bias
         act = tf.nn.xw_plus_b(x, weights, biases, name=scope.name)
 
