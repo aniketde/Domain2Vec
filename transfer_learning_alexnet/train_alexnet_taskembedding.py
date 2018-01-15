@@ -176,5 +176,5 @@ with tf.Session() as sess:
             accuracy = (1.0 * correct_predictions) / n_predictions
             log_f.write('Iteration: {} Accuracy: {}\n'.format(epoch, accuracy))
             print('Test Accuracy: ', accuracy)
-
+    log_f.close()
 
