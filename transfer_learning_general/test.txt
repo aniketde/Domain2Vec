@@ -1,0 +1,3 @@
+Iteration: 0Accuracy: 0.71484375
+Iteration: 1Accuracy: 0.7595703125
+Iteration: 2Accuracy: 0.703369140625
