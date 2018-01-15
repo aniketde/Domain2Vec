@@ -32,7 +32,8 @@ dropout_rate = 0.5
 keep_prob_rate = 1 - dropout_rate
 
 # How often we want to write the tf.summary data to disk
-display_step = 100
+summary_step = 50
+display_step = 1000
 
 # Path for tf.summary.FileWriter and to store model checkpoints
 filewriter_path = "../checkpoints"
@@ -102,14 +103,17 @@ with tf.name_scope("train"):
     optimizer = tf.train.AdamOptimizer(learning_rate)
     train_op = optimizer.apply_gradients(grads_and_vars=gradients)
 
-# Add gradients to summary
-for gradient, var in gradients:
-    tf.summary.histogram(var.name + '/gradient', gradient)
-# Add the variables we train to the summary
-for var in var_list:
-    tf.summary.histogram(var.name, var)
+# # Add gradients to summary
+# for gradient, var in gradients:
+#     tf.summary.histogram(var.name + '/gradient', gradient)
+# # Add the variables we train to the summary
+# for var in var_list:
+#     tf.summary.histogram(var.name, var)
+
 # Add the loss to summary
 tf.summary.scalar('cross_entropy', cnt_loss)
+tf.summary.scalar('L2 regularization loss', weight_norm)
+tf.summary.scalar('Total loss', loss)
 
 # Evaluation op: Accuracy of the model
 with tf.name_scope("accuracy"):
@@ -121,7 +125,8 @@ tf.summary.scalar('accuracy', accuracy)
 # Merge all summaries together
 merged_summary = tf.summary.merge_all()
 # Initialize the FileWriter
-writer = tf.summary.FileWriter(filewriter_path)
+train_writer = tf.summary.FileWriter(os.path.join(filewriter_path, 'train'))
+test_writer = tf.summary.FileWriter(os.path.join(filewriter_path, 'test'))
 # Initialize an saver for store model checkpoints
 saver = tf.train.Saver()
 
@@ -136,7 +141,7 @@ with tf.Session() as sess:
     # Initialize all variables
     sess.run(tf.global_variables_initializer())
     # Add the model graph to TensorBoard
-    writer.add_graph(sess.graph)
+    train_writer.add_graph(sess.graph)
     # Load the pretrained weights into the non-trainable layer
     model.load_initial_weights(sess)
     print("{} Start training...".format(datetime.now()))
@@ -150,15 +155,28 @@ with tf.Session() as sess:
         batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
 
         # And run the training op
-        _, summ = sess.run([train_op, merged_summary], feed_dict={data_x: data_batch,
+        _ = sess.run(train_op, feed_dict={data_x: data_batch,
                                       y: batch_one_hot,
                                       keep_prob: keep_prob_rate})
 
-        writer.add_summary(summ, epoch)
+        # Writing summaries
+        if epoch % summary_step == 0:
+            summ = sess.run(merged_summary, feed_dict={data_x: data_batch,
+                                              y: batch_one_hot,
+                                              keep_prob: 1.})
+            train_writer.add_summary(summ, epoch)
+
+            # For testing loss
+            random_iterator_test = data_generator.TestIterator()
+            _, data_batch, label_batch, _ = next(random_iterator_test)
+            batch_one_hot = sess.run(tf.one_hot(label_batch, num_classes))
+            summ = sess.run(merged_summary, feed_dict={data_x: data_batch,
+                                                       y: batch_one_hot,
+                                                       keep_prob: 1.})
+            test_writer.add_summary(summ, epoch)
+
         correct_predictions, n_predictions = 0, 0
         random_iterator_test = data_generator.TestIterator()
-        if epoch%100 == 0:
-            print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         if epoch % display_step == 0:
             print('Testing with task: ', test_task)
             for itr in range(batches_per_itr):
