@@ -113,12 +113,12 @@ class AlexNet(object):
 
                         # Biases
                         if len(data.shape) == 1:
-                            var = tf.get_variable('biases', trainable=False)
+                            var = tf.get_variable('biases', trainable=True)
                             session.run(var.assign(data))
 
                         # Weights
                         else:
-                            var = tf.get_variable('weights', trainable=False)
+                            var = tf.get_variable('weights', trainable=True)
                             session.run(var.assign(data))
 
 
