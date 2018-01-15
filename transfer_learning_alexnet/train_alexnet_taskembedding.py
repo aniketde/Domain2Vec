@@ -7,6 +7,7 @@ from alexnet_taskembedding import AlexNetTaskEmbedding
 from randomdatagenerator import ImageDataGenerator
 from datetime import datetime
 import layer_utils
+import logging
 
 """
 Configuration Part.
@@ -48,6 +49,8 @@ Main Part of the finetuning Script.
 # Create parent path if it doesn't exist
 layer_utils.make_dir(checkpoint_path)
 layer_utils.make_dir(log_dir)
+
+logging.basicConfig(filename=log_file, filemode='w', level=logging.DEBUG)
 
 # TF placeholder for graph input and output
 data_x = tf.placeholder(tf.float32, [data_batch_size, 227, 227, 3], name='PH_data_x')
@@ -141,7 +144,6 @@ with tf.Session() as sess:
     print("{} Open Tensorboard at --logdir {}".format(datetime.now(),
                                                       filewriter_path))
     # Loop over number of epochs
-    log_f = open(log_file, 'w+')
     # Data Generator for testing
     for epoch in range(num_epochs):
         # get next batch of data
@@ -174,7 +176,6 @@ with tf.Session() as sess:
                 correct_predictions += np.sum(temp * flag)
                 n_predictions += np.sum(flag)
             accuracy = (1.0 * correct_predictions) / n_predictions
-            log_f.write('Iteration: {} Accuracy: {}\n'.format(epoch, accuracy))
+            logging.info('Iteration: {} Accuracy: {}\n'.format(epoch, accuracy))
             print('Test Accuracy: ', accuracy)
-    log_f.close()
 
