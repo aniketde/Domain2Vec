@@ -1,0 +1,26 @@
+Iteration: 0 Accuracy: 0.93095703125
+Iteration: 1 Accuracy: 0.94873046875
+Iteration: 2 Accuracy: 0.941748046875
+Iteration: 3 Accuracy: 0.960107421875
+Iteration: 4 Accuracy: 0.9478515625
+Iteration: 5 Accuracy: 0.777587890625
+Iteration: 6 Accuracy: 0.929833984375
+Iteration: 7 Accuracy: 0.772119140625
+Iteration: 8 Accuracy: 0.928369140625
+Iteration: 9 Accuracy: 0.7955078125
+
+Final average accuracy after 10 runs: 0.89328125
+
+% METADATA
+epochs: 10000     
+total_tasks = 100
+examples_per_task = 1024
+training_frac = 0.8
+data_batch_size = 128
+task_batch_size = 768
+# Range of the hyperparameters
+learning_rate_space = np.ones(1) * 0.001  # np.logspace(-5, -1, 10)
+d_space = np.power(2, [2], dtype=np.int32)
+n1_space = np.power(2, [2], dtype=np.int32)
+h1_space = np.power(2, [2], dtype=np.int32)
+weight_decay_space = np.logspace(-6, -6, 1)
