@@ -43,7 +43,7 @@ def test_data_iterator(features, labels, data_batch_size, task_batch_size,
         yield task_batch_features, data_batch_features, batch_labels
 
 
-def train_data_iterator(features, labels, data_batch_size, task_batch_size,
+def train_data_iterator(features, labels, data_batch_size, task_batch_size, train_indices,
                         train_sequence, task_sizes):
     """
     Creates an iterator which outputs the placeholders for the neural network
@@ -53,10 +53,11 @@ def train_data_iterator(features, labels, data_batch_size, task_batch_size,
     :param task_batch_size: Batch size for the embedding network
     :param task_sequence: A list containing start indices of tasks
     """
-    no_of_tasks = train_sequence.shape[0]
+    # no_of_tasks = train_sequence.shape[0]
     while True:
         # Randomly pick task
-        task_itr = randint(0, no_of_tasks - 1)
+        # task_itr = randint(0, no_of_tasks - 1)
+        task_itr = random.choice(train_indices)
 
         # Define task specific index bounds
         perm = np.arange(train_sequence[task_itr], train_sequence[task_itr] + task_sizes[task_itr])
@@ -88,103 +89,145 @@ if __name__ == '__main__':
     task_sequence = np.load('examples/VLCS_task_sequence.npy')
     task_sizes = np.load('examples/VLCS_task_sizes.npy').item()
 
-    print(task_sizes)
-
-    # _train_sequence = np.array([0, 3375, 6031])
-    # _test_sequence = np.array([7446])
-    #
-    # train_task_sizes = {0: 3376, 1: 2656, 2: 1415}
-    # test_task_sizes = {0: 3282}
-
     VLCS = np.load('examples/VLCS.npy')
-
     X, Y = VLCS[:, :4096], VLCS[:,-1]
+
+    test_domain = 3
 
     # Load sequence by specifying test task
     # V:0, L:1 ,C:2 ,S:3
     # Remaining domains will be used for training
     _train_sequence, _test_sequence, train_task_sizes, test_task_sizes = load_sequences(task_sequence, task_sizes,
-                                                                                        test_domain=3)
-    print(_train_sequence, _test_sequence, train_task_sizes, test_task_sizes)
-    folds = 2   # For K-Fold CV
-    epochs = 100
+                                                                                        test_domain=test_domain)
+    # print(_train_sequence, _test_sequence, train_task_sizes, test_task_sizes)
 
-    ################################### Task embedding network #########################################################
-    # Hyperparameters
-    learning_rate = 0.001  # np.logspace(-5, -1, 10)
-    d = 2**2
-    n1 = 2**2
-    h1 = 2**2
+    folds = 2   # For K-Fold CV
+    epochs = 1000
     data_batch_size = 16
-    weight_decay = 10.0**-6
     task_batch_size = 1024
     num_classes = 5
 
 
-    # # Range of the hyperparameters
-    # learning_rate_space = np.logspace(-5, -1, 10)
-    # d_space = np.power(2, [1, 2, 3, 4, 5, 6], dtype=np.int32)
-    # n1_space = np.power(2, [2, 3, 4, 5, 6, 7], dtype=np.int32)
-    # h1_space = np.power(2, [2, 3, 4, 5, 6, 7], dtype=np.int32)
-    # weight_decay_space = np.logspace(-5, -1, 10)
-    # n_experiments = 100
+    # Hyperparameter Space
+    learning_rate_space = np.logspace(-5, -1, 10)
+    d_space = np.power(2, [1, 2, 3, 4, 5, 6], dtype=np.int32)
+    n1_space = np.power(2, [2, 3, 4, 5, 6, 7], dtype=np.int32)
+    h1_space = np.power(2, [2, 3, 4, 5, 6, 7], dtype=np.int32)
+    weight_decay_space = np.logspace(-5, -1, 10)
 
-    # accuracy_mat = np.zeros((len(num_training_domains), len(num_examples), num_runs))
+    n_experiments = 1
 
+    # Hyperparameter selection
+    hp_space = np.zeros((n_experiments, 5))
+    hp_loss = np.zeros((n_experiments,))
+    hp_accuracy = np.zeros((n_experiments,))
 
-    kf = KFold(n_splits=folds, shuffle=True)
+    for experiment in range(n_experiments):
 
-    cv_accuracy = []
+        print("Experiment {} of {}...".format(experiment + 1, n_experiments))
 
-    for k, (train, test) in enumerate(kf.split(_train_sequence)):
-        print(train, test)
-        train_sequence, test_sequence = _train_sequence[train], _train_sequence[test]
-        # x_val_train, x_val_test = X_train[train_sequence], X_train[test_sequence]
-        # y_val_train, y_val_test = Y_train[train_sequence], Y_train[test_sequence]
+        # Setting up the experiment space - hyperparameter values
+        learning_rate = np.random.choice(learning_rate_space)
+        d = np.random.choice(d_space)
+        n1 = np.random.choice(n1_space)
+        h1 = np.random.choice(h1_space)
+        weight_decay = np.random.choice(weight_decay_space)
+        hp_space[experiment] = [learning_rate, d, n1, h1, weight_decay]
 
-        # print(train_sequence, test_sequence)
+        kf = KFold(n_splits=folds, shuffle=True)
 
-        data_iter = train_data_iterator(X,
-                                        Y,
-                                        data_batch_size=data_batch_size,
-                                        task_batch_size=task_batch_size,
-                                        train_sequence=train_sequence,
-                                        task_sizes=train_task_sizes)
+        cv_accuracy = []
+        cv_loss = []
 
-        tf.reset_default_graph()
-        model = D2VNetwork(input_features_dim=4096,
-                           task_emb_shape=d,
-                           input_hid_layer_shape=h1,
-                           task_emb_hid_shape=n1,
-                           weight_decay=weight_decay,
-                           task_batch_size=task_batch_size,
-                           data_batch_size=data_batch_size,
-                           learning_rate=learning_rate,
-                           num_classes=num_classes)
-        sess = tf.Session()
-        model._train(sess,
-                     iterator=data_iter,
-                     epochs=epochs)
+        for k, (train, test) in enumerate(kf.split(_train_sequence)):
+            # print(train, test)
+            train_sequence, test_sequence = _train_sequence[train], _train_sequence[test]
+            # x_val_train, x_val_test = X_train[train_sequence], X_train[test_sequence]
+            # y_val_train, y_val_test = Y_train[train_sequence], Y_train[test_sequence]
 
-        # TEST Iterator
-        data_iter_test = test_data_iterator(X,
+            # print(train_sequence, test_sequence)
+
+            data_iter = train_data_iterator(X,
                                             Y,
                                             data_batch_size=data_batch_size,
                                             task_batch_size=task_batch_size,
-                                            test_sequence=test_sequence,
-                                            task_sizes=train_task_sizes)
+                                            train_sequence=_train_sequence,
+                                            task_sizes=train_task_sizes,
+                                            train_indices=train)
 
-        dev_loss, dev_accuracy = model.predictions(sess,
-                                                   data_iter_test,
-                                                   test_tasks=len(test_sequence),
-                                                   task_sizes=train_task_sizes,
-                                                   data_batch_size=data_batch_size)
+            tf.reset_default_graph()
+            model = D2VNetwork(input_features_dim=4096,
+                               task_emb_shape=d,
+                               input_hid_layer_shape=h1,
+                               task_emb_hid_shape=n1,
+                               weight_decay=weight_decay,
+                               task_batch_size=task_batch_size,
+                               data_batch_size=data_batch_size,
+                               learning_rate=learning_rate,
+                               num_classes=num_classes)
+            sess = tf.Session()
+            model._train(sess,
+                         iterator=data_iter,
+                         epochs=epochs)
 
-        print("fold: {},  Accuracy is: {}".format(k, dev_accuracy))
-        cv_accuracy.append(dev_accuracy)
-        # accuracy_mat[m_index, n_index, run] = dev_accuracy
+            # TEST Iterator
+            data_iter_test = test_data_iterator(X,
+                                                Y,
+                                                data_batch_size=data_batch_size,
+                                                task_batch_size=task_batch_size,
+                                                test_sequence=_train_sequence,
+                                                task_sizes=train_task_sizes)
 
-    print("Average accuracy after cross validation: ", np.mean(cv_accuracy))
+            dev_loss, dev_accuracy = model.predictions(sess,
+                                                       data_iter_test,
+                                                       test_tasks=len(test_sequence),
+                                                       task_sizes=train_task_sizes,
+                                                       data_batch_size=data_batch_size)
+
+            print("fold: {},  K-Fold Accuracy is: {}".format(k+1, dev_accuracy))
+            cv_accuracy.append(dev_accuracy)
+            cv_loss.append(dev_loss)
+
+        print("Average accuracy after cross validation: ", np.mean(cv_accuracy))
+        hp_accuracy[experiment] = np.mean(cv_accuracy)
+        hp_loss[experiment] = np.mean(cv_loss)
+
+
+    print("Optimum hyperparameters resulting in maximum accuracy: ", hp_space[np.argmax(hp_accuracy)])
+
+    ########################### Re-train the model on optimum hyperparameters ##########################################
+
+    learning_rate_opt, d_opt, n1_opt, h1_opt, weight_decay_opt = hp_space[np.argmax(hp_accuracy)]
+
+    d_opt = np.int32(d_opt)
+    n1_opt = np.int32(n1_opt)
+    h1_opt = np.int32(h1_opt)
+
+    # print(learning_rate_opt, d_opt, n1_opt, h1_opt, weight_decay_opt)
+
+    data_iter = train_data_iterator(X,
+                                    Y,
+                                    data_batch_size=data_batch_size,
+                                    task_batch_size=task_batch_size,
+                                    train_sequence=_train_sequence,
+                                    task_sizes=train_task_sizes,
+                                    train_indices=np.union1d(train, test))
+
+    tf.reset_default_graph()
+    model = D2VNetwork(input_features_dim=4096,
+                       task_emb_shape=d_opt,
+                       input_hid_layer_shape=h1_opt,
+                       task_emb_hid_shape=n1_opt,
+                       weight_decay=weight_decay_opt,
+                       task_batch_size=task_batch_size,
+                       data_batch_size=data_batch_size,
+                       learning_rate=learning_rate_opt,
+                       num_classes=num_classes)
+    sess = tf.Session()
+    model._train(sess,
+                 iterator=data_iter,
+                 epochs=epochs)
+
     # TEST Iterator
     data_iter_test = test_data_iterator(X,
                                         Y,
@@ -199,7 +242,14 @@ if __name__ == '__main__':
                                                  task_sizes=test_task_sizes,
                                                  data_batch_size=data_batch_size)
 
-    print("==== Final accuracy is: {} =====".format(test_accuracy))
+    print("==== Final test accuracy on domain {} is: {} =====".format(test_domain, test_accuracy))
 
-    # np.save('accuracy.npy', accuracy_mat)
-    # print(accuracy_mat)
+    result_dict = {}
+    result_dict['hp_accuracy'] = hp_accuracy
+    result_dict['hp_space'] = hp_space
+    result_dict['best_hyper_accuracy'] = np.max(hp_accuracy)
+    result_dict['best_hyper_loss'] = np.min(hp_loss)
+    result_dict['final_test_accuracy'] = test_accuracy
+
+    file = open(r"vlcs_result_file.pkl", "wb")
+    pickle.dump(result_dict, file)
