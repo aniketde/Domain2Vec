@@ -3,14 +3,15 @@ import numpy as np
 from layer_utils import *
 
 
-class TaskEmbeddingNetworkNaive:
+class D2VNetwork:
     """
     This is the graph for single task training
     """
     def __init__(self, task_emb_shape, input_hid_layer_shape,
                  task_emb_hid_shape, weight_decay=0.005,
                  learning_rate=0.01, task_batch_size=1024,
-                 data_batch_size=256, input_features_dim=2):
+                 data_batch_size=256, input_features_dim=2, num_classes=2):
+
         self._task_emb_shape = task_emb_shape
         self._input_hid_layer_shape = input_hid_layer_shape
         self._task_emb_hid_shape = task_emb_hid_shape
@@ -19,9 +20,11 @@ class TaskEmbeddingNetworkNaive:
         self._task_batch_size = task_batch_size
         self._data_batch_size = data_batch_size
         self._input_dim = input_features_dim
+        self._num_classes = num_classes
         self._create()
 
     def _create(self):
+
         self.task_batch = tf.placeholder(tf.float32, shape=[self._task_batch_size, self._input_dim])
         self.input_batch = tf.placeholder(tf.float32, shape=[self._data_batch_size, self._input_dim])
         self.output = tf.placeholder(tf.int64, shape=[None])
@@ -35,10 +38,10 @@ class TaskEmbeddingNetworkNaive:
             self.task_embedding_tile = tf.tile(self.task_embedding, [self._data_batch_size, 1])
             self.input = tf.concat([self.input_batch, self.task_embedding_tile], axis=1)
             self.inp_fc1 = fc_layer_naive(self.input, self._input_hid_layer_shape, name='inp_fc0')
-            self.fc_fnl = fc_layer_naive(self.inp_fc1, 2, name='fc_fnl', non_linear_fn=None)
+            self.fc_fnl = fc_layer_naive(self.inp_fc1, self._num_classes, name='fc_fnl', non_linear_fn=None)
         self.pred = tf.argmax(tf.nn.softmax(self.fc_fnl), 1)
 
-    def _train(self, sess, iterator, epochs, experiment, ckpt_check=False):
+    def _train(self, sess, iterator, epochs, ckpt_check=False):
         # Getting the basic variables required to run loops for the desired number of epochs
         task_data, batch_data, y = next(iterator)
 
@@ -62,10 +65,10 @@ class TaskEmbeddingNetworkNaive:
                     self.task_batch: task_data, self.input_batch: batch_data, self.output: y})
                 task_data, batch_data, y = next(iterator)
 
-                if step % 1000 == 0:
+                if step % 10 == 0:
                     print("Epoch {} : Training Loss = {}, Accuracy: {}".format(step, total_loss, accuracy))
 
-    def predictions(self, sess, test_iterator, test_tasks, examples_per_task, data_batch_size):
+    def predictions(self, sess, test_iterator, test_tasks, task_sizes, data_batch_size):
         """
         [Assumption: We are assuming that all the samples for a task are passed in one go to the network]
         :param sess:
@@ -78,7 +81,7 @@ class TaskEmbeddingNetworkNaive:
         total_predictions = 0
         total_loss = 0
         for task in range(test_tasks):
-            for i in range(int(examples_per_task/data_batch_size)):
+            for i in range(int(task_sizes[task]/data_batch_size)):
                 task_batch, input_batch, labels_batch = next(test_iterator)
                 prediction, loss, acc = sess.run([self.pred, self.losses, self.correct_predictions], feed_dict=
                 {self.task_batch: task_batch, self.input_batch: input_batch, self.output: labels_batch})
@@ -145,7 +148,7 @@ class SingleGraph:
                     self.input_batch: batch_data, self.output: y})
                 _, batch_data, y = next(iterator)
 
-                if step % 1000 == 0:
+                if step % 10 == 0:
                     print("Epoch {} : Training Loss = {}, Accuracy: {}".format(step, total_loss, accuracy))
 
     def predictions(self, sess, test_iterator, test_tasks, examples_per_task, data_batch_size):

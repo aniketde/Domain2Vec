@@ -6,8 +6,8 @@ from random import randint
 import pickle
 
 
-def TestDataIterator(features, labels, data_batch_size, task_batch_size,
-                     test_sequence, examples_per_task):
+def test_data_iterator(features, labels, data_batch_size, task_batch_size,
+                       test_sequence, examples_per_task):
     """
     Creates an iterator which outputs the placeholders for the neural network
     :param features: The features for the different tasks
@@ -39,8 +39,8 @@ def TestDataIterator(features, labels, data_batch_size, task_batch_size,
         yield task_batch_features, data_batch_features, batch_labels
 
 
-def TrainDataIterator(features, labels, data_batch_size, task_batch_size,
-                      train_sequence, examples_per_task):
+def train_data_iterator(features, labels, data_batch_size, task_batch_size,
+                        train_sequence, examples_per_task):
     """
     Creates an iterator which outputs the placeholders for the neural network
     :param features: The features for the different tasks
@@ -94,12 +94,12 @@ if __name__ == '__main__':
                 x_train, y_train = run_file[(m, n)]['x_train'], run_file[(m, n)]['y_train']
                 train_sequence = np.arange(0, m*n, n)
 
-                data_iter = TrainDataIterator(x_train,
-                                              y_train,
-                                              data_batch_size=data_batch_size,
-                                              task_batch_size=n,
-                                              train_sequence=train_sequence,
-                                              examples_per_task=n)
+                data_iter = train_data_iterator(x_train,
+                                                y_train,
+                                                data_batch_size=data_batch_size,
+                                                task_batch_size=n,
+                                                train_sequence=train_sequence,
+                                                examples_per_task=n)
 
                 tf.reset_default_graph()
                 model = SingleGraph(hidden_layers=hidden_layers,
@@ -114,12 +114,12 @@ if __name__ == '__main__':
                              experiment=run)
 
                 # TEST Iterator
-                data_iter_test = TestDataIterator(x_test,
-                                                  y_test,
-                                                  data_batch_size=data_batch_size,
-                                                  task_batch_size=n,
-                                                  test_sequence=test_sequence,
-                                                  examples_per_task=examples_per_domain)
+                data_iter_test = test_data_iterator(x_test,
+                                                    y_test,
+                                                    data_batch_size=data_batch_size,
+                                                    task_batch_size=n,
+                                                    test_sequence=test_sequence,
+                                                    examples_per_task=examples_per_domain)
 
                 dev_loss, dev_accuracy = model.predictions(sess,
                                                            data_iter_test,
