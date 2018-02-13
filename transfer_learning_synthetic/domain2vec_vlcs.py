@@ -10,7 +10,7 @@ import random
 import scipy.io as sio
 
 
-def test_data_iterator(features, labels, data_batch_size, task_batch_size,
+def test_data_iterator(features, labels, data_batch_size, task_batch_size, test_indices,
                        test_sequence, task_sizes):
     """
     Creates an iterator which outputs the placeholders for the neural network
@@ -19,14 +19,14 @@ def test_data_iterator(features, labels, data_batch_size, task_batch_size,
     :param data_batch_size: Batch size for the data
     :param task_batch_size: Batch size for the embedding network
     """
-    task_itr = 0
+    task_itr = test_indices[0]
     data_batch_start = test_sequence[task_itr]
 
-    while True:
-        if data_batch_start + data_batch_size - test_sequence[task_itr] > task_sizes[task_itr]:
-            # Next task
-            task_itr += 1
-            data_batch_start = test_sequence[task_itr]
+    while data_batch_start + data_batch_size - test_sequence[task_itr] <= task_sizes[task_itr]:
+        # if data_batch_start + data_batch_size - test_sequence[task_itr] > task_sizes[task_itr]:
+        #     # Next task
+        #     task_itr += 1
+        #     data_batch_start = test_sequence[task_itr]
 
         # ----- DATA BATCH ------ #
         data_batch_features = features[data_batch_start:(data_batch_start + data_batch_size)]
@@ -101,21 +101,21 @@ if __name__ == '__main__':
                                                                                         test_domain=test_domain)
     # print(_train_sequence, _test_sequence, train_task_sizes, test_task_sizes)
 
-    folds = 2   # For K-Fold CV
-    epochs = 1000
-    data_batch_size = 16
+    folds = 3   # For K-Fold CV
+    epochs = 250
+    data_batch_size = 128
     task_batch_size = 1024
     num_classes = 5
 
 
     # Hyperparameter Space
-    learning_rate_space = np.logspace(-5, -1, 10)
-    d_space = np.power(2, [1, 2, 3, 4, 5, 6], dtype=np.int32)
-    n1_space = np.power(2, [2, 3, 4, 5, 6, 7], dtype=np.int32)
-    h1_space = np.power(2, [2, 3, 4, 5, 6, 7], dtype=np.int32)
+    learning_rate_space = np.logspace(-4, -3, 10)
+    d_space = np.power(2, [4, 5, 6], dtype=np.int32)
+    n1_space = np.power(2, [5, 6, 7, 8], dtype=np.int32)
+    h1_space = np.power(2, [5, 6, 7], dtype=np.int32)
     weight_decay_space = np.logspace(-5, -1, 10)
 
-    n_experiments = 1
+    n_experiments = 10
 
     # Hyperparameter selection
     hp_space = np.zeros((n_experiments, 5))
@@ -145,7 +145,7 @@ if __name__ == '__main__':
             # x_val_train, x_val_test = X_train[train_sequence], X_train[test_sequence]
             # y_val_train, y_val_test = Y_train[train_sequence], Y_train[test_sequence]
 
-            # print(train_sequence, test_sequence)
+            # print(train, test)
 
             data_iter = train_data_iterator(X,
                                             Y,
@@ -176,11 +176,12 @@ if __name__ == '__main__':
                                                 data_batch_size=data_batch_size,
                                                 task_batch_size=task_batch_size,
                                                 test_sequence=_train_sequence,
-                                                task_sizes=train_task_sizes)
+                                                task_sizes=train_task_sizes,
+                                                test_indices=test)
 
             dev_loss, dev_accuracy = model.predictions(sess,
                                                        data_iter_test,
-                                                       test_tasks=len(test_sequence),
+                                                       test_tasks=test,
                                                        task_sizes=train_task_sizes,
                                                        data_batch_size=data_batch_size)
 
@@ -192,8 +193,7 @@ if __name__ == '__main__':
         hp_accuracy[experiment] = np.mean(cv_accuracy)
         hp_loss[experiment] = np.mean(cv_loss)
 
-
-    print("Optimum hyperparameters resulting in maximum accuracy: ", hp_space[np.argmax(hp_accuracy)])
+    print("Optimum hyperparameters resulting in a maximum accuracy of {}: {}".format(np.max(hp_accuracy), hp_space[np.argmax(hp_accuracy)]))
 
     ########################### Re-train the model on optimum hyperparameters ##########################################
 
@@ -234,11 +234,12 @@ if __name__ == '__main__':
                                         data_batch_size=data_batch_size,
                                         task_batch_size=task_batch_size,
                                         test_sequence=_test_sequence,
-                                        task_sizes=test_task_sizes)
+                                        task_sizes=test_task_sizes,
+                                        test_indices=[0])
 
     test_loss, test_accuracy = model.predictions(sess,
                                                  data_iter_test,
-                                                 test_tasks=1,
+                                                 test_tasks=[0],
                                                  task_sizes=test_task_sizes,
                                                  data_batch_size=data_batch_size)
 

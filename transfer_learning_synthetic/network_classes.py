@@ -80,7 +80,7 @@ class D2VNetwork:
         correct_predictions = 0
         total_predictions = 0
         total_loss = 0
-        for task in range(test_tasks):
+        for task in test_tasks:
             for i in range(int(task_sizes[task]/data_batch_size)):
                 task_batch, input_batch, labels_batch = next(test_iterator)
                 prediction, loss, acc = sess.run([self.pred, self.losses, self.correct_predictions], feed_dict=
