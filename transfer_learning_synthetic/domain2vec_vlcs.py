@@ -21,16 +21,18 @@ def test_data_iterator(features, labels, data_batch_size, task_batch_size, test_
     """
     task_itr = test_indices[0]
     data_batch_start = test_sequence[task_itr]
+    last = False
 
-    while data_batch_start + data_batch_size - test_sequence[task_itr] <= task_sizes[task_itr]:
-        # if data_batch_start + data_batch_size - test_sequence[task_itr] > task_sizes[task_itr]:
-        #     # Next task
-        #     task_itr += 1
-        #     data_batch_start = test_sequence[task_itr]
+    while not last:
+        if data_batch_start + data_batch_size - test_sequence[task_itr] > task_sizes[task_itr]:
+            data_batch_end = test_sequence[task_itr] + task_sizes[task_itr]
+            last = True
+        else:
+            data_batch_end = data_batch_start + data_batch_size
 
         # ----- DATA BATCH ------ #
-        data_batch_features = features[data_batch_start:(data_batch_start + data_batch_size)]
-        batch_labels = labels[data_batch_start:(data_batch_start + data_batch_size)]
+        data_batch_features = features[data_batch_start:data_batch_end]
+        batch_labels = labels[data_batch_start:data_batch_end]
 
         # ------- TASK BATCH ------- #
         # Define task specific index bounds
@@ -40,7 +42,7 @@ def test_data_iterator(features, labels, data_batch_size, task_batch_size, test_
         task_batch_features = features[perm[:task_batch_size]]
 
         data_batch_start += data_batch_size
-        yield task_batch_features, data_batch_features, batch_labels
+        yield task_batch_features, data_batch_features, batch_labels, last
 
 
 def train_data_iterator(features, labels, data_batch_size, task_batch_size, train_indices,
@@ -92,7 +94,7 @@ if __name__ == '__main__':
     VLCS = np.load('examples/VLCS.npy')
     X, Y = VLCS[:, :4096], VLCS[:,-1]
 
-    test_domain = 3
+    test_domain = 1
 
     # Load sequence by specifying test task
     # V:0, L:1 ,C:2 ,S:3
@@ -102,7 +104,7 @@ if __name__ == '__main__':
     # print(_train_sequence, _test_sequence, train_task_sizes, test_task_sizes)
 
     folds = 3   # For K-Fold CV
-    epochs = 250
+    epochs = 500
     data_batch_size = 128
     task_batch_size = 1024
     num_classes = 5
@@ -252,5 +254,5 @@ if __name__ == '__main__':
     result_dict['best_hyper_loss'] = np.min(hp_loss)
     result_dict['final_test_accuracy'] = test_accuracy
 
-    file = open(r"vlcs_result_file.pkl", "wb")
+    file = open(r"vlcs_result_file_L.pkl", "wb")
     pickle.dump(result_dict, file)

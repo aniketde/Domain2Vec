@@ -7,19 +7,19 @@ task_sizes = {}
 task_sequence = [0]
 mat_contents = sio.loadmat('../../VLCS/VOC2007.mat')
 data = mat_contents['data']
-shuffle(data)
+np.random.shuffle(data)
 
 print('V:', data.shape)
 
 X, Y = data[:,:4096], data[:,-1]
 
-VLCS = data
+VLCS = np.copy(data)
 task_sequence.append(data.shape[0] - 1)
 task_sizes[0] = data.shape[0]
 
 mat_contents = sio.loadmat('../../VLCS/LabelMe.mat')
 data = mat_contents['data']
-shuffle(data)
+np.random.shuffle(data)
 print('L: ', data.shape)
 
 X, Y = data[:,:4096], data[:,-1]
@@ -31,7 +31,7 @@ task_sizes[1] = data.shape[0]
 mat_contents = sio.loadmat('../../VLCS/Caltech101.mat')
 
 data = mat_contents['data']
-shuffle(data)
+np.random.shuffle(data)
 print('C: ', data.shape)
 
 X, Y = data[:,:4096], data[:,-1]
@@ -43,7 +43,7 @@ task_sizes[2] = data.shape[0]
 
 mat_contents = sio.loadmat('../../VLCS/SUN09.mat')
 data = mat_contents['data']
-shuffle(data)
+np.random.shuffle(data)
 print('S: ', data.shape)
 
 X, Y = data[:,:4096], data[:,-1]

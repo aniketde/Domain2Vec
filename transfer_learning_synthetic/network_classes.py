@@ -21,6 +21,7 @@ class D2VNetwork:
         self._data_batch_size = data_batch_size
         self._input_dim = input_features_dim
         self._num_classes = num_classes
+        self.batch_slice = data_batch_size
         self._create()
 
     def _create(self):
@@ -53,7 +54,8 @@ class D2VNetwork:
                 [tf.nn.l2_loss(i.initialized_value()) for i in tf.get_collection('wd_variables')]), name='weight_norm')
             self.total_loss = tf.add(self.losses, self.weight_norm)
             optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self.total_loss)
-            self.correct_predictions = tf.reduce_sum(tf.cast(tf.equal(self.pred, self.output), tf.float32))
+            self.correct_predictions = tf.reduce_sum(tf.cast(tf.equal(self.pred[:self.batch_slice],
+                                                                      self.output[:self.batch_slice]), tf.float32))
             self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.pred, self.output), tf.float32))
 
         # This is the main training module of the graph
@@ -81,15 +83,31 @@ class D2VNetwork:
         total_predictions = 0
         total_loss = 0
         for task in test_tasks:
-            for i in range(int(task_sizes[task]/data_batch_size)):
-                task_batch, input_batch, labels_batch = next(test_iterator)
-                prediction, loss, acc = sess.run([self.pred, self.losses, self.correct_predictions], feed_dict=
-                {self.task_batch: task_batch, self.input_batch: input_batch, self.output: labels_batch})
+            for i in range(int(task_sizes[task]/data_batch_size) + 1):
+                task_batch, input_batch, labels_batch, last = next(test_iterator)
+                if last:
+                    residual_padding = int(data_batch_size - task_sizes[task] % data_batch_size)
+                    input_batch = np.concatenate((input_batch, np.zeros((residual_padding, 4096),
+                                                                        dtype=np.float32)), axis=0)
+                    labels_batch = np.concatenate((labels_batch, np.zeros((residual_padding,),
+                                                                          dtype=np.float32)))
+                    self.batch_slice = task_sizes[task] % data_batch_size
+                    total_predictions += self.batch_slice
+
+                prediction, loss, correct_pred = sess.run([self.pred, self.losses, self.correct_predictions],
+                                                          feed_dict={self.task_batch: task_batch,
+                                                                     self.input_batch: input_batch,
+                                                                     self.output: labels_batch})
                 total_loss += loss
-                correct_predictions += acc
-                total_predictions += prediction.shape[0]
+                correct_predictions += correct_pred
+                if not last:
+                    total_predictions += prediction.shape[0]
+                # print('acc: ', correct_pred, ' ', self.batch_slice)
+                # print('itr: ', i, 'pred: ', prediction, 'output: ', labels_batch)
+        print(total_predictions)
         accuracy = correct_predictions/total_predictions
         total_loss /= total_predictions
+        self.batch_slice = self._data_batch_size
         return total_loss, accuracy
 
 
@@ -165,12 +183,14 @@ class SingleGraph:
         total_loss = 0
         for task in range(test_tasks):
             for i in range(int(examples_per_task / data_batch_size)):
-                _, input_batch, labels_batch = next(test_iterator)
+                _, input_batch, labels_batch, data_batch_start = next(test_iterator)
                 prediction, loss, acc = sess.run([self.pred, self.losses, self.correct_predictions], feed_dict=
                 {self.input_batch: input_batch, self.output: labels_batch})
                 total_loss += loss
                 correct_predictions += acc
                 total_predictions += prediction.shape[0]
+
+
         accuracy = correct_predictions / total_predictions
         total_loss /= total_predictions
         return total_loss, accuracy
