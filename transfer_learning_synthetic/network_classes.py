@@ -67,7 +67,7 @@ class D2VNetwork:
                     self.task_batch: task_data, self.input_batch: batch_data, self.output: y})
                 task_data, batch_data, y = next(iterator)
 
-                if step % 10 == 0:
+                if step % 1000 == 0:
                     print("Epoch {} : Training Loss = {}, Accuracy: {}".format(step, total_loss, accuracy))
 
     def predictions(self, sess, test_iterator, test_tasks, task_sizes, data_batch_size):
@@ -87,7 +87,7 @@ class D2VNetwork:
                 task_batch, input_batch, labels_batch, last = next(test_iterator)
                 if last:
                     residual_padding = int(data_batch_size - task_sizes[task] % data_batch_size)
-                    input_batch = np.concatenate((input_batch, np.zeros((residual_padding, 4096),
+                    input_batch = np.concatenate((input_batch, np.zeros((residual_padding, self._input_dim),
                                                                         dtype=np.float32)), axis=0)
                     labels_batch = np.concatenate((labels_batch, np.zeros((residual_padding,),
                                                                           dtype=np.float32)))
@@ -104,7 +104,7 @@ class D2VNetwork:
                     total_predictions += prediction.shape[0]
                 # print('acc: ', correct_pred, ' ', self.batch_slice)
                 # print('itr: ', i, 'pred: ', prediction, 'output: ', labels_batch)
-        print(total_predictions)
+        #print(total_predictions)
         accuracy = correct_predictions/total_predictions
         total_loss /= total_predictions
         self.batch_slice = self._data_batch_size
