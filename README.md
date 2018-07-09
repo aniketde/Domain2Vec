@@ -1,9 +1,5 @@
-# MultiTaskLearning
-Google sheet:
-https://docs.google.com/spreadsheets/d/1Xsb8Fj-x7tBTkT96WewGPMUIbqTmTvJ7N3OSNpm9Aiw/edit#gid=0
-
-
-Overleaf link - https://www.overleaf.com/13013426jhvqwxwckmzq#/49869984/
+# Domain2Vec
+We address the problem of domain generalization where a decision function is learned from the data of several related domains, and the goal is to apply it on an unseen domain successfully. It is assumed that there is plenty of labeled data available in source domains (also called as training domain), but no labeled data is available for the unseen domain (also called a target domain or test domain). We propose a novel neural network architecture, Domain2Vec (D2V) that learns domain-specific embedding and then uses this embedding to generalize the learning across related domains. Proposed algorithm, D2V extends the idea of distribution regression and kernelized domain generalization to the neural networks setting. We propose a neural network architecture to learn domain-specific embedding and then use this embedding along with the data point specific features to label it. We show the effectiveness of the architecture by accurately estimating domain to domain similarity. We evaluate our algorithm against standard domain generalization datasets for image classification and outperform other state of the art algorithms.
 
 
  
