@@ -1,2 +1,0 @@
-INFO:tensorflow:Summary name L2 regularization loss is illegal; using L2_regularization_loss instead.
-INFO:tensorflow:Summary name Total loss is illegal; using Total_loss instead.
