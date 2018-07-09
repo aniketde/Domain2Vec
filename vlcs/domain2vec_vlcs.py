@@ -1,14 +1,8 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import tensorflow as tf
-from layer_utils import *
-from network_classes import *
 from sklearn.model_selection import KFold
-from random import randint
 import pickle
 import random
-import scipy.io as sio
 
+from network_classes import *
 
 def test_data_iterator(features, labels, data_batch_size, task_batch_size, test_indices,
                        test_sequence, task_sizes):
@@ -37,6 +31,7 @@ def test_data_iterator(features, labels, data_batch_size, task_batch_size, test_
         # ------- TASK BATCH ------- #
         # Define task specific index bounds
         perm = np.arange(test_sequence[task_itr], test_sequence[task_itr] + task_sizes[task_itr])
+
         # Shuffle task specific indices and collect task batch
         np.random.shuffle(perm)
         task_batch_features = features[perm[:task_batch_size]]
@@ -57,6 +52,7 @@ def train_data_iterator(features, labels, data_batch_size, task_batch_size, trai
     """
     # no_of_tasks = train_sequence.shape[0]
     while True:
+
         # Randomly pick task
         # task_itr = randint(0, no_of_tasks - 1)
         task_itr = random.choice(train_indices)
@@ -88,29 +84,20 @@ def load_sequences(task_sequence, task_sizes, test_domain=3):
 if __name__ == '__main__':
 
     # Creating the synthetic task embedding samples
-    task_sequence = np.load('examples/MNIST_task_sequence.npy')
-    task_sizes = np.load('examples/MNIST_task_sizes.npy').item()
+    task_sequence = np.load('VLCS_task_sequence.npy')
+    task_sizes = np.load('VLCS_task_sizes.npy').item()
 
-    X, Y = np.load('examples/MNIST_ROT_X.npy'), np.load('examples/MNIST_ROT_Y.npy')
-    # X, Y = VLCS[:, :4096], VLCS[:,-1]
+    VLCS = np.load('VLCS.npy')
+    X, Y = VLCS[:, :4096], VLCS[:,-1]
 
 
-    # print(_train_sequence, _test_sequence, train_task_sizes, test_task_sizes)
-
-    ## VLCS
-    # folds = 3   # For K-Fold CV
-    # epochs = 1500
-    # data_batch_size = 128
-    # task_batch_size = 1024
-    # num_classes = 5
-
-    ## MNIST
-    folds = 5   # For K-Fold CV
-    epochs = 5000
-    data_batch_size = 20
-    task_batch_size = 1000
-    num_classes = 10
-    feature_dimension = 256
+    # VLCS
+    folds = 3   # For K-Fold CV
+    epochs = 5
+    data_batch_size = 128
+    task_batch_size = 1024
+    num_classes = 5
+    feature_dimension = 4096
 
 
     # Hyperparameter Space
@@ -120,21 +107,21 @@ if __name__ == '__main__':
     h1_space = np.power(2, [3, 4, 5, 6, 7], dtype=np.int32)
     weight_decay_space = np.logspace(-4, -3, 10)
 
-    n_experiments = 100
+    n_experiments = 1
 
     # Hyperparameter selection
     hp_space = np.zeros((n_experiments, 5))
     hp_loss = np.zeros((n_experiments,))
     hp_accuracy = np.zeros((n_experiments,))
 
-    for test_domain in range(0, 6):
+    for test_domain in range(0, 4):
 
         _train_sequence, _test_sequence, train_task_sizes, test_task_sizes = load_sequences(task_sequence, task_sizes,
                                                                                             test_domain=test_domain)
 
         for experiment in range(n_experiments):
 
-            print("Experiment {} of {} for test domain {}...".format(experiment + 1, n_experiments, test_domain))
+            print(f"Experiment {experiment + 1} of {n_experiments} for test domain {test_domain}...")
 
             # Setting up the experiment space - hyperparameter values
             learning_rate = np.random.choice(learning_rate_space)
@@ -151,12 +138,8 @@ if __name__ == '__main__':
             cv_loss = []
 
             for k, (train, test) in enumerate(kf.split(_train_sequence)):
-                # print(train, test)
-                train_sequence, test_sequence = _train_sequence[train], _train_sequence[test]
-                # x_val_train, x_val_test = X_train[train_sequence], X_train[test_sequence]
-                # y_val_train, y_val_test = Y_train[train_sequence], Y_train[test_sequence]
 
-                # print(_train_sequence, train, test)
+                train_sequence, test_sequence = _train_sequence[train], _train_sequence[test]
 
                 data_iter = train_data_iterator(X,
                                                 Y,
@@ -179,7 +162,8 @@ if __name__ == '__main__':
                 sess = tf.Session()
                 model._train(sess,
                              iterator=data_iter,
-                             epochs=epochs)
+                             epochs=epochs,
+                             display_step=10)
 
                 # TEST Iterator
                 data_iter_test = test_data_iterator(X,
@@ -196,15 +180,16 @@ if __name__ == '__main__':
                                                            task_sizes=train_task_sizes,
                                                            data_batch_size=data_batch_size)
 
-                print("fold: {},  K-Fold accuracy on test domain {} is: {}".format(k+1, _train_sequence[test][0]/1000, dev_accuracy))
+                print(f"fold: {k+1},  K-Fold accuracy on test domain {_train_sequence[test][0]/1000} is: {dev_accuracy}")
                 cv_accuracy.append(dev_accuracy)
                 cv_loss.append(dev_loss)
 
-            print("Average accuracy after cross validation: ", np.mean(cv_accuracy))
+            print(f"Average accuracy after cross validation: {np.mean(cv_accuracy)}")
             hp_accuracy[experiment] = np.mean(cv_accuracy)
             hp_loss[experiment] = np.mean(cv_loss)
 
-        print("Optimum hyperparameters resulting in a maximum accuracy of {}: {}".format(np.max(hp_accuracy), hp_space[np.argmax(hp_accuracy)]))
+        print(f"Optimum hyperparameters resulting in a maximum accuracy of "
+              f"{np.max(hp_accuracy)}: {hp_space[np.argmax(hp_accuracy)]}")
 
         ########################### Re-train the model on optimum hyperparameters ##########################################
 
@@ -213,8 +198,6 @@ if __name__ == '__main__':
         d_opt = np.int32(d_opt)
         n1_opt = np.int32(n1_opt)
         h1_opt = np.int32(h1_opt)
-
-        # print(learning_rate_opt, d_opt, n1_opt, h1_opt, weight_decay_opt)
 
         data_iter = train_data_iterator(X,
                                         Y,
@@ -254,14 +237,21 @@ if __name__ == '__main__':
                                                      task_sizes=test_task_sizes,
                                                      data_batch_size=data_batch_size)
 
-        print("==== Final test accuracy on domain {} is: {} =====".format(test_domain, test_accuracy))
+        print(f"\n==== Final test accuracy on domain {test_domain} is: {test_accuracy} =====\n")
 
         result_dict = {}
+        result_dict['meta'] = {'folds': folds,
+                               'epochs': epochs,
+                               'data_batch_size': data_batch_size,
+                               'task_batch_size': task_batch_size,
+                               'num_classes': num_classes,
+                               'feature_dimension': feature_dimension
+                               }
         result_dict['hp_accuracy'] = hp_accuracy
         result_dict['hp_space'] = hp_space
         result_dict['best_hyper_accuracy'] = np.max(hp_accuracy)
         result_dict['best_hyper_loss'] = np.min(hp_loss)
         result_dict['final_test_accuracy'] = test_accuracy
 
-        file = open(r"mnist_result_file_" + str(test_domain) + ".pkl", "wb")
+        file = open(r"vlcs_result_file_" + str(test_domain) + ".pkl", "wb")
         pickle.dump(result_dict, file)

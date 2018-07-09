@@ -1,12 +1,7 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import tensorflow as tf
-from layer_utils import *
-from network_classes import *
+from ..graph.network_classes import *
 from sklearn.model_selection import KFold
 from random import randint
 import pickle
-import random
 
 
 def test_data_iterator(features, labels, data_batch_size, task_batch_size,
@@ -84,7 +79,6 @@ if __name__ == '__main__':
 
     epochs = 10000
 
-    ################################### Task embedding network #########################################################
     # Hyperparameters
     learning_rate = 0.001  # np.logspace(-5, -1, 10)
     d = 2**2

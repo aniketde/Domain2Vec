@@ -42,7 +42,7 @@ class D2VNetwork:
             self.fc_fnl = fc_layer_naive(self.inp_fc1, self._num_classes, name='fc_fnl', non_linear_fn=None)
         self.pred = tf.argmax(tf.nn.softmax(self.fc_fnl), 1)
 
-    def _train(self, sess, iterator, epochs, ckpt_check=False):
+    def _train(self, sess, iterator, epochs, display_step=100):
         # Getting the basic variables required to run loops for the desired number of epochs
         task_data, batch_data, y = next(iterator)
 
@@ -67,7 +67,7 @@ class D2VNetwork:
                     self.task_batch: task_data, self.input_batch: batch_data, self.output: y})
                 task_data, batch_data, y = next(iterator)
 
-                if step % 1000 == 0:
+                if step % display_step == 0:
                     print("Epoch {} : Training Loss = {}, Accuracy: {}".format(step, total_loss, accuracy))
 
     def predictions(self, sess, test_iterator, test_tasks, task_sizes, data_batch_size):

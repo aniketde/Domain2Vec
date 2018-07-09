@@ -1,7 +1,5 @@
 import scipy.io as sio
 import numpy as np
-import pickle
-from random import shuffle
 
 task_sizes = {}
 task_sequence = [0]
